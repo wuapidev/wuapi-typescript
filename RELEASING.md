@@ -97,16 +97,20 @@ step 3 needs the `wuapihq` npm account.
 
 1. **The SDK repository.** `wuapidev/wuapi-typescript`, public, populated
    with `git subtree split --prefix=packages/wuapi-sdk` of the monorepo.
-2. **The deploy key.** An ed25519 key pair: the public key is a deploy key of
-   wuapi-typescript with write access ("wuapi monorepo sync"), the private key
-   is the monorepo's Actions secret `SDK_TYPESCRIPT_DEPLOY_KEY`. To rotate it:
+2. **The sync token.** A fine-grained personal access token with resource
+   owner `wuapidev`, access to `wuapi-typescript` only, and **Contents** and
+   **Workflows** read and write. It is the monorepo's Actions secret
+   `SDK_TYPESCRIPT_TOKEN`. A deploy key is not enough: GitHub refuses a push
+   that changes `.github/workflows/` without the workflows permission. The
+   token expires, so renew it before then:
 
    ```sh
-   ssh-keygen -t ed25519 -N "" -C "wuapi monorepo sync" -f ./sync_key
-   gh repo deploy-key add ./sync_key.pub -R wuapidev/wuapi-typescript --allow-write --title "wuapi monorepo sync"
-   gh secret set SDK_TYPESCRIPT_DEPLOY_KEY -R wuapidev/wuapi < ./sync_key
-   rm ./sync_key ./sync_key.pub   # then delete the old deploy key
+   gh secret set SDK_TYPESCRIPT_TOKEN -R wuapidev/wuapi   # prompts for the new token
    ```
+
+   The repository must let this push through: its "no force pushes or
+   deletion" rule is fine; a rule requiring status checks on `main` is not,
+   because CI runs after the sync pushes.
 3. **npm trusted publishing (OIDC).** No npm token exists anywhere. On
    npmjs.com, signed in as `wuapihq`, open `@wuapidev/sdk` → Settings →
    Trusted publishing and set the GitHub Actions publisher to:
@@ -129,6 +133,6 @@ step 3 needs the `wuapihq` npm account.
 
 A new SDK (Python, Go, ...) follows the same shape: a folder in the monorepo
 with its own `.github/workflows/` (CI and release), a public repository named
-`wuapidev/wuapi-<language>`, a deploy key and secret `SDK_<LANGUAGE>_DEPLOY_KEY`,
+`wuapidev/wuapi-<language>`, a token with access to it as `SDK_<LANGUAGE>_TOKEN`,
 and a copy of `sync-sdk-typescript.yml` with its own prefix, remote and
 concurrency group. `scripts/sync-sdk.sh` is shared.
