@@ -11,8 +11,8 @@ TypeScript SDK for [wuapi](https://wuapi.dev), an unofficial WhatsApp API. Link 
 ## Install
 
 ```sh
-npm install @wuapi/sdk
-# or: pnpm add @wuapi/sdk / yarn add @wuapi/sdk / bun add @wuapi/sdk
+npm install @wuapidev/sdk
+# or: pnpm add @wuapidev/sdk / yarn add @wuapidev/sdk / bun add @wuapidev/sdk
 ```
 
 Using a coding agent? Paste [wuapi.dev/llms-full.txt](https://wuapi.dev/llms-full.txt), the whole documentation as one Markdown file, or install the skills once with `npx skills add wuapi/skills`.
@@ -20,7 +20,7 @@ Using a coding agent? Paste [wuapi.dev/llms-full.txt](https://wuapi.dev/llms-ful
 ## Quickstart: link a number and send a message
 
 ```ts
-import { Wuapi } from "@wuapi/sdk";
+import { Wuapi } from "@wuapidev/sdk";
 
 const wuapi = new Wuapi({ apiKey: process.env.WUAPI_API_KEY });
 
@@ -191,7 +191,7 @@ console.log(endpoint.secret); // whsec_...
 Verify each request with the raw body, before parsing it as JSON:
 
 ```ts
-import { verifyWebhook, WebhookVerificationError } from "@wuapi/sdk";
+import { verifyWebhook, WebhookVerificationError } from "@wuapidev/sdk";
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -286,7 +286,7 @@ wuapi bills the organization across all its projects; `usage.byProject` is what 
 Every non-2xx response throws a `WuapiError` with `status`, `code`, `message`, `details` and `requestId` (when the server sends `x-request-id`).
 
 ```ts
-import { WuapiError } from "@wuapi/sdk";
+import { WuapiError } from "@wuapidev/sdk";
 
 try {
   await wuapi.messages.send({ accountId, to: "+584241112233", text: "hi" });

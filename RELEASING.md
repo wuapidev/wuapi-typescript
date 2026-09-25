@@ -1,4 +1,4 @@
-# Releasing the `@wuapi/sdk` npm package
+# Releasing the `@wuapidev/sdk` npm package
 
 Every change to what this package ships goes to npm when it reaches `main`.
 `.github/workflows/release-sdk.yml` does the publishing; you only pick the
@@ -43,12 +43,12 @@ says exactly what to change.
 The workflow authenticates to npm in one of two ways. Set up at least one.
 
 **A. An npm token.** Create a granular access token on npmjs.com with
-read and write access to the `@wuapi/sdk` package (or, before the package exists,
+read and write access to the `@wuapidev/sdk` package (or, before the package exists,
 to all packages of the publishing account), then add it to the repository as
 the Actions secret `NPM_TOKEN` (Settings → Secrets and variables → Actions).
 
 **B. Trusted publishing (OIDC), no long-lived secret.** On npmjs.com open the
-`@wuapi/sdk` package → Settings → Trusted publishing, add a GitHub Actions
+`@wuapidev/sdk` package → Settings → Trusted publishing, add a GitHub Actions
 publisher with:
 
 - Organization or user: `wuapidev`
@@ -60,7 +60,7 @@ The workflow already has `id-token: write` and updates npm to 11.5.1 or later,
 which trusted publishing needs. When `NPM_TOKEN` is set it is used instead;
 delete the secret once trusted publishing works.
 
-**The first publish.** `@wuapi/sdk` is not on npm yet, and trusted publishing can
+**The first publish.** `@wuapidev/sdk` is not on npm yet, and trusted publishing can
 only be configured on an existing package. So the first release needs either
 the `NPM_TOKEN` secret (A), or a manual publish from a clean checkout of `main`:
 

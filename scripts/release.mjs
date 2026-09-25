@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release helpers for the `@wuapi/sdk` npm package, used by
+// Release helpers for the `@wuapidev/sdk` npm package, used by
 // .github/workflows/release-sdk.yml. Node built-ins only.
 //
 //   node scripts/release.mjs check-bump <base-sha> <head-sha>
