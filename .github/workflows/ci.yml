@@ -34,6 +34,12 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
+      # Node 22 ships npm 10, whose installer crashes on this dependency tree
+      # without a lockfile ("Cannot read properties of null (reading
+      # 'edgesOut')"). Installing only the dev tooling, so npm 11 is fine;
+      # people installing the package are not affected.
+      - name: Update npm
+        run: npm install --global npm@11 --no-audit --no-fund
       - name: Install
         run: npm install --no-audit --no-fund
       - run: npm run typecheck
