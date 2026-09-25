@@ -253,6 +253,13 @@ export interface AccountPacingUpdate {
   queueTimeoutMinutes?: number | null;
 }
 
+/**
+ * Whether an account imports the recent chats the phone sends once, right
+ * after the number links. `none` (the default) imports nothing; `recent`
+ * stores them with `source: "history"` and fires `history.synced`.
+ */
+export type HistorySyncSetting = "none" | "recent";
+
 export interface Account {
   object: "account";
   id: string;
@@ -276,6 +283,8 @@ export interface Account {
   rejectCalls: boolean;
   rejectCallsMessage: string | null;
   pacing: AccountPacing;
+  /** History import. Applies to the next link: a linked number gets no new history. */
+  historySync: HistorySyncSetting;
   metadata: Record<string, string>;
   linkedAt: string | null;
   lastConnectedAt: string | null;
@@ -293,6 +302,8 @@ export interface AccountCreateParams {
   pairingPhone?: string;
   /** Organization keys only: create the account in this project (id or `ext:<externalId>`). */
   projectId?: string;
+  /** `recent` imports the chats the phone sends once, right after linking. Default `none`. */
+  historySync?: HistorySyncSetting;
 }
 
 export interface AccountUpdateParams {
@@ -302,6 +313,12 @@ export interface AccountUpdateParams {
   rejectCallsMessage?: string;
   /** `null` resets every value to the default. */
   pacing?: AccountPacingUpdate | null;
+  /**
+   * Import history at the next link, or not. WhatsApp sends history once,
+   * right after linking: a number that is already linked gets none, not even
+   * after a reconnect.
+   */
+  historySync?: HistorySyncSetting;
 }
 
 export interface PairingCode {
@@ -932,6 +949,8 @@ export interface Invitation {
   inviteePhone: string | null;
   suggestedCountry: string | null;
   methods: InvitationMethod[];
+  /** The `historySync` of the account the invitee links. */
+  historySync: HistorySyncSetting;
   accountName: string | null;
   /** Set once `status` is `completed`. */
   accountId: string | null;
@@ -960,6 +979,8 @@ export interface InvitationCreateParams {
   inviteePhone?: string;
   suggestedCountry?: string;
   methods?: InvitationMethod[];
+  /** `recent` makes the linked account import the phone's recent chats. Default `none`. */
+  historySync?: HistorySyncSetting;
   returnUrl?: string;
   expiresInDays?: number;
   metadata?: Record<string, string>;

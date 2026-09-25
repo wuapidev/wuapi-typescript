@@ -1,7 +1,7 @@
 import { WuapiError } from "./errors.js";
 import type { CallOptions } from "./types.js";
 
-export const VERSION = "0.1.2";
+export const VERSION = "0.1.3";
 export const DEFAULT_BASE_URL = "https://api.wuapi.dev";
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;

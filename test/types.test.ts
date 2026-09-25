@@ -2,7 +2,7 @@
 // `@ts-expect-error` below must still be an error. The runtime assertions only
 // keep vitest from reporting an empty file.
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { SendMessageParams, SendType, StoryCreateParams } from "../src/index.js";
+import type { Account, AccountCreateParams, AccountUpdateParams, HistorySyncSetting, InvitationCreateParams, SendMessageParams, SendType, StoryCreateParams } from "../src/index.js";
 
 const base = { accountId: "acc_1", to: "+584241112233" };
 
@@ -58,5 +58,18 @@ describe("StoryCreateParams", () => {
     // @ts-expect-error text stories need text
     const noText: StoryCreateParams = { type: "text" };
     expect([...stories, noMedia, noText]).toHaveLength(4);
+  });
+});
+
+describe("historySync", () => {
+  it("is none or recent on create, update, the account and invitations", () => {
+    expectTypeOf<HistorySyncSetting>().toEqualTypeOf<"none" | "recent">();
+    expectTypeOf<Account["historySync"]>().toEqualTypeOf<HistorySyncSetting>();
+    const create: AccountCreateParams = { proxyLocation: { country: "VE", city: "caracas" }, historySync: "recent" };
+    const update: AccountUpdateParams = { historySync: "none" };
+    const invite: InvitationCreateParams = { historySync: "recent" };
+    // @ts-expect-error only none or recent
+    const full: AccountUpdateParams = { historySync: "full" };
+    expect([create, update, invite, full]).toHaveLength(4);
   });
 });

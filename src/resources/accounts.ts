@@ -55,7 +55,8 @@ export class Accounts extends Resource {
    * `proxyLocations.list()`). A new organization links its first account
    * with no card; after that it needs an active or trialing subscription
    * (402 otherwise). Pass `pairingPhone` to link by pairing code instead of QR
-   * code, then `waitForPairingCode`.
+   * code, then `waitForPairingCode`. Chat history is imported only with
+   * `historySync: "recent"`.
    */
   create(params: AccountCreateParams, options?: CallOptions): Promise<Account> {
     return this._post("/v1/accounts", params, options);
@@ -65,7 +66,10 @@ export class Accounts extends Resource {
     return this._get(accountPath(accountId), undefined, options);
   }
 
-  /** Rename it, set automatic call rejection, or tune its `pacing` (`null` resets it). */
+  /**
+   * Rename it, set automatic call rejection, tune its `pacing` (`null` resets
+   * it), or change `historySync` for the next link.
+   */
   update(accountId: string, params: AccountUpdateParams, options?: CallOptions): Promise<Account> {
     return this._patch(accountPath(accountId), params, options);
   }
