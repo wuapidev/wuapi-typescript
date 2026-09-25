@@ -89,7 +89,11 @@ console.log(message.id, message.status); // "queued"
 
 A send returns the message with `status: "queued"`. The outcome arrives as the `message.sent` or `message.failed` webhook, or by calling `wuapi.messages.get(id)`. A recipient without WhatsApp fails with `error.code: "not_on_whatsapp"`.
 
+While a message is still `queued`, `messages.edit` sends it with the new text instead and `messages.delete` cancels it (it ends `failed` with `error.code: "cancelled"`). One being handed to WhatsApp at that moment answers `409 message_sending`: retry in a few seconds.
+
 Every resource carries `object` (`"account"`, `"message"`, ...). Contacts are E.164 (`+584241112233`), or `lid:<digits>` when WhatsApp hides the number; groups are `…@g.us`, channels `…@newsletter`.
+
+A contact who hides their number may still be known by a WhatsApp username: inbound messages and contacts carry `username` (lowercase, no `@`), and `to: "@lina.morales"` sends to a contact the account already chats with. WhatsApp does not let a linked device look up other usernames, so those answer `400 username_not_supported`. Blocked contacts (`contacts.listBlocked()` and `blocklist_change` webhook payloads) carry `phone` and `lid` when the account knows them.
 
 ## Link by pairing code instead of QR
 
