@@ -37,12 +37,18 @@ export class Messages extends Resource {
     return this._get(path(messageId), undefined, options);
   }
 
-  /** Edit an outbound text message, within WhatsApp's edit window (about 15 minutes). Fires `message.edited`. */
+  /**
+   * Edit an outbound text message, within WhatsApp's edit window (about 15 minutes). Fires `message.edited`.
+   * A text message still `queued` is sent with the new text instead (no `editedAt`, no `message.edited`).
+   */
   edit(messageId: string, text: string, options?: CallOptions): Promise<Message> {
     return this._patch(path(messageId), { text }, options);
   }
 
-  /** Delete an outbound message, for everyone by default. */
+  /**
+   * Delete an outbound message, for everyone by default. A message still `queued` is cancelled instead:
+   * it is never sent and ends `failed` with `error.code: "cancelled"`.
+   */
   delete(messageId: string, params: MessageDeleteParams = {}, options?: CallOptions): Promise<void> {
     return this._delete(path(messageId), { forEveryone: params.forEveryone }, options);
   }

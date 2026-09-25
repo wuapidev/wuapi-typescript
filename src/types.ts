@@ -707,7 +707,12 @@ export interface BusinessProfile {
 
 export interface BlockedContact {
   object: "blocked_contact";
+  /** The contact as WhatsApp lists it in the blocklist (often a `lid:`). */
   contactId: ContactId;
+  /** The contact's number (E.164) when the account knows it, else `null`. */
+  phone: string | null;
+  /** The contact's LID (`lid:<digits>`) when the account knows it, else `null`. */
+  lid: string | null;
 }
 
 export interface ContactLink {
@@ -1128,8 +1133,9 @@ export interface PictureChange {
 export interface BlocklistChange {
   object: "blocklist_change";
   accountId: string;
-  changes: Array<{ contactId: ContactId; action: "block" | "unblock" }>;
-  /** WhatsApp only said the list changed: call `contacts.listBlocked()`. */
+  /** Who was blocked or unblocked, with their number and LID when known. */
+  changes: Array<{ contactId: ContactId; action: "block" | "unblock"; phone: string | null; lid: string | null }>;
+  /** No changes could be named (no earlier list to compare with): call `contacts.listBlocked()`. */
   refetch: boolean;
 }
 
