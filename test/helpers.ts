@@ -76,6 +76,7 @@ export const message = (id: string) => ({
   from: "+584121234567",
   to: "+584241112233",
   profileName: null,
+  username: null,
   type: "text",
   text: "hi",
   media: null,

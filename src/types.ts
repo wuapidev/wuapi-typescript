@@ -407,6 +407,12 @@ export interface Message {
   to: string;
   /** The sender's WhatsApp display name, on inbound messages. */
   profileName: string | null;
+  /**
+   * The sender's WhatsApp username (lowercase, without the `@`), on inbound
+   * messages when WhatsApp shared it. A contact who hides their number
+   * (`from` is `lid:<digits>`) is often only recognizable by it.
+   */
+  username: string | null;
   type: MessageType;
   /** Text, caption of media, or the emoji of a reaction. */
   text: string | null;
@@ -486,8 +492,11 @@ export interface SendMessageBase {
   /** The account to send from. It must be `ready`. */
   accountId: string;
   /**
-   * A contact id, a group id (`…@g.us`) or a channel id (`…@newsletter`,
-   * admins only). Channels take only `text`, `image`, `video` and `document`.
+   * A contact id, a WhatsApp username (`"@lina.morales"`) of a contact the
+   * account already chats with, a group id (`…@g.us`) or a channel id
+   * (`…@newsletter`, admins only). Channels take only `text`, `image`, `video`
+   * and `document`. Other usernames answer `400 username_not_supported`:
+   * WhatsApp does not let a linked device look them up.
    */
   to: string;
   /** Contact ids to mention. Not for channel posts. */
@@ -672,6 +681,8 @@ export interface ContactCheck {
   onWhatsApp: boolean;
   contactId: ContactId | null;
   businessName: string | null;
+  /** The number's WhatsApp username (no `@`), when the account already knows it. */
+  username: string | null;
 }
 
 export interface Contact {
@@ -679,6 +690,8 @@ export interface Contact {
   id: ContactId;
   accountId: string;
   lid: string | null;
+  /** The contact's WhatsApp username (lowercase, no `@`), when WhatsApp shared it. */
+  username: string | null;
   about: string | null;
   pictureId: string | null;
   businessName: string | null;
