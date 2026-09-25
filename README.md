@@ -4,7 +4,7 @@
 [![CI](https://github.com/wuapidev/wuapi-typescript/actions/workflows/ci.yml/badge.svg)](https://github.com/wuapidev/wuapi-typescript/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/@wuapidev/sdk.svg)](LICENSE)
 
-TypeScript SDK for [wuapi](https://wuapi.dev), an unofficial WhatsApp API. Link your own WhatsApp numbers by QR code or pairing code, send and receive messages, manage chats, contacts, groups, communities and channels, split them into projects, and verify webhooks.
+TypeScript SDK for [wuapi](https://wuapi.dev), a secure, fast and scalable WhatsApp API for developers. Link your own WhatsApp numbers by QR code or pairing code, send and receive messages, manage chats, contacts, groups, communities and channels, split them into projects, and verify webhooks.
 
 - Zero runtime dependencies. Uses the global `fetch` and WebCrypto.
 - ESM with TypeScript types that match the [OpenAPI spec](https://wuapi.dev/openapi.json).
@@ -12,7 +12,7 @@ TypeScript SDK for [wuapi](https://wuapi.dev), an unofficial WhatsApp API. Link 
 
 Docs: [wuapi.dev/docs](https://wuapi.dev/docs). OpenAPI: [wuapi.dev/openapi.json](https://wuapi.dev/openapi.json).
 
-> **Unofficial.** wuapi is not affiliated with, endorsed by or sponsored by WhatsApp or Meta, and it does not use the WhatsApp Business Platform (Cloud API). Numbers are linked as devices, the same way WhatsApp Web works. WhatsApp can restrict or ban numbers that behave like spam. You are responsible for your recipients' consent and for following WhatsApp's terms.
+> **How it works.** wuapi does not use the WhatsApp Business Platform (Cloud API). Numbers are linked as devices, the same way WhatsApp Web works. WhatsApp can restrict or ban numbers that behave like spam. You are responsible for your recipients' consent and for following WhatsApp's terms.
 
 ## Install
 
@@ -409,3 +409,5 @@ This repository mirrors the SDK from the wuapi monorepo, where it is developed. 
 ## License
 
 MIT
+
+wuapi is an independent service. It is not affiliated with, endorsed or sponsored by WhatsApp or Meta. WhatsApp is a trademark of Meta Platforms, Inc.
