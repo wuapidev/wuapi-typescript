@@ -1027,6 +1027,8 @@ export const WEBHOOK_EVENT_TYPES = [
   "project.updated",
   "project.deleted",
   "invitation.status_changed",
+  // Sent only by "Send test event" in the dashboard, to the endpoint being tested.
+  "webhook.test",
 ] as const;
 
 export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
@@ -1214,6 +1216,8 @@ export interface EventObjectMap {
   "project.updated": Project;
   "project.deleted": Project;
   "invitation.status_changed": Invitation;
+  /** The endpoint the test was sent to. One attempt, no retries. */
+  "webhook.test": WebhookEndpoint;
 }
 
 interface PreviousAttributesMap {

@@ -10,6 +10,7 @@ import {
   type Message,
   type PollVote,
   type WebhookEvent,
+  type WebhookEndpoint,
   type WebhookEventType,
 } from "../src/index.js";
 
@@ -28,9 +29,9 @@ describe("webhook event types", () => {
     expect([...WEBHOOK_EVENT_TYPES]).toEqual([...backend.WEBHOOK_EVENTS]);
   });
 
-  it("are resource.verb_past names, 34 of them, none twice", () => {
-    expect(WEBHOOK_EVENT_TYPES).toHaveLength(34);
-    expect(new Set(WEBHOOK_EVENT_TYPES).size).toBe(34);
+  it("are resource.verb_past names, 35 of them, none twice", () => {
+    expect(WEBHOOK_EVENT_TYPES).toHaveLength(35);
+    expect(new Set(WEBHOOK_EVENT_TYPES).size).toBe(35);
     for (const t of WEBHOOK_EVENT_TYPES) expect(t).toMatch(/^[a-z_]+\.[a-z_]+$/);
     expect(WEBHOOK_EVENT_TYPES.join(" ")).not.toMatch(/newsletter|status\./);
   });
@@ -46,5 +47,6 @@ describe("webhook event types", () => {
     expectTypeOf<Of<"invitation.status_changed">["data"]["object"]>().toEqualTypeOf<Invitation>();
     expectTypeOf<Of<"invitation.status_changed">["data"]["previousAttributes"]["status"]>().toEqualTypeOf<InvitationStatus>();
     expectTypeOf<Of<"message.edited">["data"]["previousAttributes"]["text"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<Of<"webhook.test">["data"]["object"]>().toEqualTypeOf<WebhookEndpoint>();
   });
 });

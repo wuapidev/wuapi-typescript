@@ -248,7 +248,7 @@ export async function POST(request: Request) {
 
 `verifyWebhook` checks the `Wuapi-Signature` header (`t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<rawBody>">`) in constant time and rejects timestamps more than 300 seconds away (pass a fourth argument to change it). Deliveries can repeat: deduplicate on `event.id`.
 
-Every event has the same envelope: `{ id, object: "event", type, createdAt, organizationId, projectId, data: { object } }`. `data.object` is the resource in its REST shape (an `account`, a `message`, a `group`, ...) or the event's own object (`poll_vote`, `call`, `chat_change`, ...). `message.edited` and `invitation.status_changed` add `data.previousAttributes`. `WEBHOOK_EVENT_TYPES` lists every type.
+Every event has the same envelope: `{ id, object: "event", type, createdAt, organizationId, projectId, data: { object } }`. `data.object` is the resource in its REST shape (an `account`, a `message`, a `group`, ...) or the event's own object (`poll_vote`, `call`, `chat_change`, ...). `message.edited` and `invitation.status_changed` add `data.previousAttributes`. `webhook.test` (the endpoint as `data.object`) is sent only when you press Send test event in the dashboard. `WEBHOOK_EVENT_TYPES` lists every type.
 
 ## Projects
 
