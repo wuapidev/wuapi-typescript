@@ -33,17 +33,16 @@
   "homepage": "https://wuapi.dev/docs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wuapidev/wuapi.git",
-    "directory": "packages/wuapi-sdk"
+    "url": "git+https://github.com/wuapidev/wuapi-typescript.git"
   },
   "bugs": {
-    "url": "https://github.com/wuapidev/wuapi/issues"
+    "url": "https://github.com/wuapidev/wuapi-typescript/issues"
   },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "prepublishOnly": "bun run typecheck && bun run test && bun run build"
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -1,13 +1,16 @@
 #!/usr/bin/env node
-// Release helpers for the `@wuapidev/sdk` npm package, used by
-// .github/workflows/release-sdk.yml. Node built-ins only.
+// Release helpers for the `@wuapidev/sdk` npm package. Node built-ins only.
+// Works both in the wuapi monorepo (package at packages/wuapi-sdk) and in the
+// standalone wuapidev/wuapi-typescript repository (package at the root).
 //
 //   node scripts/release.mjs check-bump <base-sha> <head-sha>
-//     Pull requests: fails when a file that ships in (or builds) the package
-//     changed but package.json's version is not above the base branch's.
+//     Pull requests in the monorepo (.github/workflows/sdk-version.yml): fails
+//     when a file that ships in (or builds) the package changed but
+//     package.json's version is not above the base branch's.
 //   node scripts/release.mjs plan
-//     Prints `key=value` lines for $GITHUB_OUTPUT: version, tag, dist_tag,
-//     prerelease, published (whether npm already has this version).
+//     Prints `key=value` lines for $GITHUB_OUTPUT: name, version, tag
+//     (v<version>), dist_tag, prerelease, published (whether npm already has
+//     this version). Needs no git. Used by .github/workflows/release.yml.
 //
 // See RELEASING.md for the rule and the release process.
 
@@ -17,8 +20,21 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const pkgDir = join(dirname(fileURLToPath(import.meta.url)), "..");
-const repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: pkgDir, encoding: "utf8" }).trim();
-const pkgPath = relative(repoRoot, pkgDir).split("\\").join("/"); // packages/wuapi-sdk
+
+/**
+ * Where the git repository is and where the package sits in it: `packages/wuapi-sdk`
+ * in the monorepo, `` (the root) in wuapi-typescript. Resolved on first use, so
+ * `plan` also runs outside a git checkout.
+ */
+let layout = null;
+function repo() {
+  if (layout === null) {
+    const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: pkgDir, encoding: "utf8" }).trim();
+    const path = relative(root, pkgDir).split("\\").join("/");
+    layout = { root, path, prefix: path === "" ? "" : `${path}/` };
+  }
+  return layout;
+}
 
 /**
  * What a release is made of: the files npm packs (`files` in package.json:
@@ -58,12 +74,12 @@ function compare(a, b) {
 }
 
 function git(...args) {
-  return execFileSync("git", args, { cwd: repoRoot, encoding: "utf8" });
+  return execFileSync("git", args, { cwd: repo().root, encoding: "utf8" });
 }
 
 function versionAt(ref) {
   try {
-    return JSON.parse(git("show", `${ref}:${pkgPath}/package.json`)).version;
+    return JSON.parse(git("show", `${ref}:${repo().prefix}package.json`)).version;
   } catch {
     return null; // the package does not exist there
   }
@@ -127,10 +143,12 @@ function bumpPre(pre) {
 
 function checkBump(base, head) {
   if (!base || !head) throw new Error("usage: release.mjs check-bump <base-sha> <head-sha>");
+  const { path, prefix } = repo();
+  const pkgPath = path === "" ? "." : path;
   const changed = git("diff", "--name-only", `${base}...${head}`, "--", pkgPath)
     .split("\n")
     .filter(Boolean)
-    .map((f) => f.slice(pkgPath.length + 1));
+    .map((f) => f.slice(prefix.length));
   const released = changed.filter((f) => RELEASED.some((re) => re.test(f)));
   if (released.length === 0) {
     console.log(`No released file of ${pkgPath} changed (${changed.length ? changed.join(", ") : "nothing"}): no version bump needed.`);
@@ -138,13 +156,13 @@ function checkBump(base, head) {
   }
   const from = versionAt(base);
   const to = versionAt(head);
-  if (to === null) throw new Error(`${pkgPath}/package.json is missing at ${head}`);
+  if (to === null) throw new Error(`${prefix}package.json is missing at ${head}`);
   if (from === null) {
     console.log(`${pkgPath} is new on this branch; it will publish as ${to}.`);
     return;
   }
   parse(to);
-  const name = JSON.parse(git("show", `${head}:${pkgPath}/package.json`)).name;
+  const name = JSON.parse(git("show", `${head}:${prefix}package.json`)).name;
   // A base version that never reached npm is not a release: what must be
   // exceeded is the highest version npm has (none before the first publish).
   // This is what lets the pre-launch reset to 0.1.0 through.
@@ -169,17 +187,17 @@ function checkBump(base, head) {
       `${pkgPath} changed but its version was not bumped (${to} here, ${from} on the base branch).`,
       `Changed released files: ${released.join(", ")}.`,
       `Every change to these files ships to npm on merge, so give it a new version above ${from}:`,
-      `  1. Set "version" in ${pkgPath}/package.json to ${next.map((v) => `\`${v}\``).join(", ")} or another version above ${from}.`,
-      `  2. Set VERSION in ${pkgPath}/src/core.ts to the same value (test/version.test.ts checks it).`,
+      `  1. Set "version" in ${prefix}package.json to ${next.map((v) => `\`${v}\``).join(", ")} or another version above ${from}.`,
+      `  2. Set VERSION in ${prefix}src/core.ts to the same value (test/version.test.ts checks it).`,
       `A version with a pre-release part (\`-beta.0\`) publishes under the \`next\` dist-tag instead of \`latest\`.`,
-      `Test-only changes (test/, vitest.config.ts) and ${pkgPath}/RELEASING.md need no bump. See ${pkgPath}/RELEASING.md.`,
+      `Test-only changes (test/, vitest.config.ts, scripts/, .github/) and ${prefix}RELEASING.md need no bump. See ${prefix}RELEASING.md.`,
     ].join("\n"),
   );
 }
 
 function fail(message) {
   // One annotation on package.json in the pull request, then the full text in the log.
-  console.log(`::error file=${pkgPath}/package.json,title=SDK version not bumped::${message.split("\n")[0]}`);
+  console.log(`::error file=${repo().prefix}package.json,title=SDK version not bumped::${message.split("\n")[0]}`);
   console.error(message);
   process.exit(1);
 }
@@ -191,7 +209,7 @@ function plan() {
   const lines = {
     name,
     version,
-    tag: `sdk-v${version}`,
+    tag: `v${version}`,
     dist_tag: prerelease ? "next" : "latest",
     prerelease: String(prerelease),
     published: String(onNpm(name, version)),

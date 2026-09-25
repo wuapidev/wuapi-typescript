@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   WEBHOOK_EVENT_TYPES,
@@ -12,12 +14,16 @@ import {
 } from "../src/index.js";
 
 // The backend's list, imported from the source of truth rather than copied.
-const EVENTS_TS = new URL("../../../apps/wuapi/convex/lib/events.ts", import.meta.url).href;
+// It exists only in the wuapi monorepo; the standalone SDK repository
+// (wuapidev/wuapi-typescript) skips this one test.
+const EVENTS_URL = new URL("../../../apps/wuapi/convex/lib/events.ts", import.meta.url);
+const EVENTS_TS = EVENTS_URL.href;
+const IN_MONOREPO = existsSync(fileURLToPath(EVENTS_URL));
 
 type Of<T extends WebhookEventType> = Extract<WebhookEvent, { type: T }>;
 
 describe("webhook event types", () => {
-  it("equal the backend's WEBHOOK_EVENTS, in order", async () => {
+  it.skipIf(!IN_MONOREPO)("equal the backend's WEBHOOK_EVENTS, in order", async () => {
     const backend = (await import(EVENTS_TS)) as { WEBHOOK_EVENTS: readonly string[] };
     expect([...WEBHOOK_EVENT_TYPES]).toEqual([...backend.WEBHOOK_EVENTS]);
   });

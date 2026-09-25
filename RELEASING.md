@@ -1,12 +1,22 @@
 # Releasing the `@wuapidev/sdk` npm package
 
-Every change to what this package ships goes to npm when it reaches `main`.
-`.github/workflows/release-sdk.yml` does the publishing; you only pick the
-version.
+The SDK is developed in the wuapi monorepo (`packages/wuapi-sdk`) and
+published from its public mirror,
+[wuapidev/wuapi-typescript](https://github.com/wuapidev/wuapi-typescript).
+Every change to what the package ships goes to npm when it reaches `main`;
+you only pick the version.
+
+```
+monorepo PR (bump the version)
+  -> merge into wuapidev/wuapi main
+  -> sync-sdk-typescript.yml pushes the folder to wuapidev/wuapi-typescript main
+  -> its release.yml publishes to npm with provenance, tags v<version>, creates a GitHub Release
+```
 
 ## Cutting a release
 
-1. In your pull request, bump the version in two places to the same value:
+1. In your monorepo pull request, bump the version in two places to the same
+   value:
    - `"version"` in `packages/wuapi-sdk/package.json`
    - `VERSION` in `packages/wuapi-sdk/src/core.ts` (`test/version.test.ts`
      fails when the two differ)
@@ -16,63 +26,109 @@ version.
    minor (`0.1.0` → `0.2.0`). A version with a pre-release part
    (`0.2.0-beta.0`) publishes under the `next` dist-tag; any other version
    becomes `latest`.
-2. Merge into `main`. The workflow typechecks, tests and builds the package,
-   publishes it if npm does not have that version yet, then tags the commit
-   `sdk-v<version>` and creates a GitHub Release with generated notes.
+2. Merge into `main`. `.github/workflows/sync-sdk-typescript.yml` mirrors
+   `packages/wuapi-sdk` to `wuapidev/wuapi-typescript`, where
+   `.github/workflows/release.yml` (this folder's `.github/`, at that
+   repository's root) typechecks, tests and builds the package, publishes it
+   with `npm publish --provenance` if npm does not have that version yet, then
+   creates the `v<version>` tag and a GitHub Release with generated notes.
 
-Re-running the workflow is safe: a version npm already has is skipped, and an
-existing release is left alone. To run it by hand, use **Actions → Release SDK
-→ Run workflow** on `main`; it is a dry run (`npm publish --dry-run`) unless you
-untick `dry-run`. Runs from other branches can only be dry runs.
+Re-running the release is safe: a version npm already has is skipped, and an
+existing release is left alone. To run it by hand, open **Actions → Release →
+Run workflow** in wuapi-typescript on `main`; it is a dry run
+(`npm publish --dry-run`) unless you untick `dry-run`. Runs from other
+branches can only be dry runs.
+
+Never commit to wuapi-typescript directly: the sync stops when that
+repository's `main` has commits it did not push (see "When the sync stops").
 
 ### What needs a bump
 
-On pull requests the `Version bumped` check fails when any of these changed
-without a version above the base branch's:
+On monorepo pull requests the `Version bumped` check
+(`.github/workflows/sdk-version.yml`) fails when any of these changed without
+a version above the base branch's:
 
 - `src/**` (becomes `dist/`), `package.json`, `README.md`, `LICENSE`
   (all shipped in the tarball)
 - `tsconfig.json`, `tsconfig.build.json` (they decide the build)
 
-Changes to `test/**`, `vitest.config.ts`, `scripts/**` and this file need no
-bump. The rule is `RELEASED` in `scripts/release.mjs`; the check's message
-says exactly what to change.
+Changes to `test/**`, `vitest.config.ts`, `scripts/**`, `.github/**`,
+`CONTRIBUTING.md`, `SECURITY.md` and this file need no bump; they sync to
+wuapi-typescript and publish nothing. The rule is `RELEASED` in
+`scripts/release.mjs`; the check's message says exactly what to change.
+
+## How the sync works
+
+`sync-sdk-typescript.yml` runs on every push to the monorepo's `main` that
+touches `packages/wuapi-sdk/**` (and by hand), one run at a time. It runs
+`git subtree split --prefix=packages/wuapi-sdk` and hands the result to
+`scripts/sync-sdk.sh`, which never force-pushes:
+
+- Splits are deterministic: the same history gives the same commits. When
+  wuapi-typescript's `main` is an ancestor of the new split (merge-commit
+  merges, and every normal sync), the split is pushed as a fast-forward and
+  the SDK repository gets the monorepo's commits one for one.
+- A squash or rebase merge rewrites the monorepo's commits, so the new split
+  no longer descends from what was pushed. The script then pushes one join
+  commit on top of wuapi-typescript's `main`: its tree is exactly the
+  monorepo's `packages/wuapi-sdk`, its parents are the previous `main` and the
+  new split. Still a fast-forward.
+- It records what it pushed in the ref `refs/mirror/last-sync` of
+  wuapi-typescript, in the same atomic push as `main`.
+
+### When the sync stops
+
+If wuapi-typescript's `main` is not `refs/mirror/last-sync`, someone
+committed there directly, and the sync fails with "SDK repository diverged"
+without pushing. Port the change to the monorepo and merge it, then mark the
+SDK repository's `main` as synced and re-run the workflow:
+
+```sh
+git fetch git@github.com:wuapidev/wuapi-typescript.git main
+git push git@github.com:wuapidev/wuapi-typescript.git FETCH_HEAD:refs/mirror/last-sync
+```
+
+The next sync joins `main` to the monorepo's folder with one commit.
 
 ## One-time setup
 
-The workflow authenticates to npm in one of two ways. Set up at least one.
+Done once per SDK repository. Steps 1 and 2 are done for wuapi-typescript;
+step 3 needs the `wuapihq` npm account.
 
-**A. An npm token.** Create a granular access token on npmjs.com with
-read and write access to the `@wuapidev/sdk` package (or, before the package exists,
-to all packages of the publishing account), then add it to the repository as
-the Actions secret `NPM_TOKEN` (Settings → Secrets and variables → Actions).
+1. **The SDK repository.** `wuapidev/wuapi-typescript`, public, populated
+   with `git subtree split --prefix=packages/wuapi-sdk` of the monorepo.
+2. **The deploy key.** An ed25519 key pair: the public key is a deploy key of
+   wuapi-typescript with write access ("wuapi monorepo sync"), the private key
+   is the monorepo's Actions secret `SDK_TYPESCRIPT_DEPLOY_KEY`. To rotate it:
 
-**B. Trusted publishing (OIDC), no long-lived secret.** On npmjs.com open the
-`@wuapidev/sdk` package → Settings → Trusted publishing, add a GitHub Actions
-publisher with:
+   ```sh
+   ssh-keygen -t ed25519 -N "" -C "wuapi monorepo sync" -f ./sync_key
+   gh repo deploy-key add ./sync_key.pub -R wuapidev/wuapi-typescript --allow-write --title "wuapi monorepo sync"
+   gh secret set SDK_TYPESCRIPT_DEPLOY_KEY -R wuapidev/wuapi < ./sync_key
+   rm ./sync_key ./sync_key.pub   # then delete the old deploy key
+   ```
+3. **npm trusted publishing (OIDC).** No npm token exists anywhere. On
+   npmjs.com, signed in as `wuapihq`, open `@wuapidev/sdk` → Settings →
+   Trusted publishing and set the GitHub Actions publisher to:
+   - Organization or user: `wuapidev`
+   - Repository: `wuapi-typescript`
+   - Workflow filename: `release.yml`
+   - Environment: leave empty
 
-- Organization or user: `wuapidev`
-- Repository: `wuapi`
-- Workflow filename: `release-sdk.yml`
-- Environment: leave empty
+   Remove any older publisher that points at `wuapidev/wuapi` /
+   `release-sdk.yml`. `release.yml` has `id-token: write`, runs Node 24 and
+   updates npm to 11.5.1 or later, which trusted publishing needs. Because
+   wuapi-typescript is public, npm also records a provenance statement for
+   each version, linking it to the commit and the workflow run. Provenance
+   needs `repository.url` in `package.json` to be this repository, which it is.
 
-The workflow already has `id-token: write` and updates npm to 11.5.1 or later,
-which trusted publishing needs. When `NPM_TOKEN` is set it is used instead;
-delete the secret once trusted publishing works.
+   Once trusted publishing works, you can also set the package's publishing
+   access to "Require two-factor authentication and disallow tokens".
 
-**The first publish.** `@wuapidev/sdk` is not on npm yet, and trusted publishing can
-only be configured on an existing package. So the first release needs either
-the `NPM_TOKEN` secret (A), or a manual publish from a clean checkout of `main`:
+## Adding another language
 
-```sh
-cd packages/wuapi-sdk
-npm login
-npm publish --access public   # runs prepublishOnly: typecheck, test, build
-```
-
-After a manual first publish the next workflow run finds the version on npm,
-skips publishing and still creates the `sdk-v<version>` tag and release. Then
-configure trusted publishing (B) and drop the token.
-
-The repository is private, so the workflow does not pass `--provenance`: npm
-accepts provenance statements only from public repositories.
+A new SDK (Python, Go, ...) follows the same shape: a folder in the monorepo
+with its own `.github/workflows/` (CI and release), a public repository named
+`wuapidev/wuapi-<language>`, a deploy key and secret `SDK_<LANGUAGE>_DEPLOY_KEY`,
+and a copy of `sync-sdk-typescript.yml` with its own prefix, remote and
+concurrency group. `scripts/sync-sdk.sh` is shared.

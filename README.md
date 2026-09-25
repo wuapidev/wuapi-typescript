@@ -1,10 +1,16 @@
-# wuapi
+# wuapi TypeScript SDK
+
+[![npm version](https://img.shields.io/npm/v/@wuapidev/sdk.svg)](https://www.npmjs.com/package/@wuapidev/sdk)
+[![CI](https://github.com/wuapidev/wuapi-typescript/actions/workflows/ci.yml/badge.svg)](https://github.com/wuapidev/wuapi-typescript/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/@wuapidev/sdk.svg)](LICENSE)
 
 TypeScript SDK for [wuapi](https://wuapi.dev), an unofficial WhatsApp API. Link your own WhatsApp numbers by QR code or pairing code, send and receive messages, manage chats, contacts, groups, communities and channels, split them into projects, and verify webhooks.
 
 - Zero runtime dependencies. Uses the global `fetch` and WebCrypto.
-- Runs on Node 18+, Bun, Deno and edge runtimes.
 - ESM with TypeScript types that match the [OpenAPI spec](https://wuapi.dev/openapi.json).
+- Retries, timeouts and idempotency keys built in.
+
+Docs: [wuapi.dev/docs](https://wuapi.dev/docs). OpenAPI: [wuapi.dev/openapi.json](https://wuapi.dev/openapi.json).
 
 > **Unofficial.** wuapi is not affiliated with, endorsed by or sponsored by WhatsApp or Meta, and it does not use the WhatsApp Business Platform (Cloud API). Numbers are linked as devices, the same way WhatsApp Web works. WhatsApp can restrict or ban numbers that behave like spam. You are responsible for your recipients' consent and for following WhatsApp's terms.
 
@@ -15,7 +21,32 @@ npm install @wuapidev/sdk
 # or: pnpm add @wuapidev/sdk / yarn add @wuapidev/sdk / bun add @wuapidev/sdk
 ```
 
-Using a coding agent? Paste [wuapi.dev/llms-full.txt](https://wuapi.dev/llms-full.txt), the whole documentation as one Markdown file, or install the skills once with `npx skills add wuapi/skills`.
+Using a coding agent? Paste [wuapi.dev/llms-full.txt](https://wuapi.dev/llms-full.txt), the whole documentation as one Markdown file.
+
+## Requirements
+
+The SDK needs a global `fetch` and WebCrypto (`crypto.subtle`, for webhook signatures). It runs on:
+
+- Node 18 or later
+- Bun
+- Deno: `import { Wuapi } from "npm:@wuapidev/sdk";`
+- Edge runtimes with `fetch` and WebCrypto, such as Cloudflare Workers and Vercel Edge Functions
+
+Elsewhere, pass your own implementation as `new Wuapi({ fetch })`. The package is ESM only.
+
+## Authentication
+
+Create an API key in the dashboard at [wuapi.dev/app/api-keys](https://wuapi.dev/app/api-keys). Keys look like `wu_live_...` and are sent as `Authorization: Bearer <key>`. Keep them on your server.
+
+```ts
+import { Wuapi } from "@wuapidev/sdk";
+
+const wuapi = new Wuapi({ apiKey: process.env.WUAPI_API_KEY });
+```
+
+`apiKey` falls back to the `WUAPI_API_KEY` environment variable, so `new Wuapi()` works when it is set. On runtimes without `process.env`, such as most edge runtimes, pass `apiKey` yourself. A missing key throws when the client is created.
+
+An organization key reaches every project. A project key, created with `projects.apiKeys.create`, reaches only its project: see [Projects](#projects).
 
 ## Quickstart: link a number and send a message
 
@@ -55,8 +86,6 @@ console.log(message.id, message.status); // "queued"
 ```
 
 `proxyLocation` is required: every account connects through its own residential proxy, and `{ country, city }` says where it exits. `proxyLocations.list()` returns every supported pair (`country` is ISO 3166-1 alpha-2, `city` a lowercase slug); anything else answers `400 unsupported_proxy_location`. Search it with `q`, which ignores case and accents and returns the best match first: `proxyLocations.list({ q: "sao" })` starts with São Paulo.
-
-`apiKey` falls back to the `WUAPI_API_KEY` environment variable, so `new Wuapi()` works when it is set.
 
 A send returns the message with `status: "queued"`. The outcome arrives as the `message.sent` or `message.failed` webhook, or by calling `wuapi.messages.get(id)`. A recipient without WhatsApp fails with `error.code: "not_on_whatsapp"`.
 
@@ -281,7 +310,7 @@ for (const line of report.projects) console.log(line.externalId, line.billableAc
 
 wuapi bills the organization across all its projects; `usage.byProject` is what you rebill from. `usage.get()` is the organization's own bill this month: every billable account includes 0.5 GB of proxy, pooled, so `proxyBytes` is everything used, `includedProxyBytes` the pool, and `proxyFeeCents` bills only `billableProxyBytes`, the traffic past it, at $3 per GB.
 
-## Errors and retries
+## Errors
 
 Every non-2xx response throws a `WuapiError` with `status`, `code`, `message`, `details` and `requestId` (when the server sends `x-request-id`).
 
@@ -297,10 +326,26 @@ try {
 }
 ```
 
-The client retries up to `maxRetries` times (default 2):
+A request that never got a response throws a `WuapiError` with `status: 0` and `code` set to `timeout`, `network_error` or `aborted` (your `signal` fired). The docs list every API error code.
 
-- `429 rate_limited`, waiting for `Retry-After`.
-- 5xx responses, network errors and timeouts, with exponential backoff.
+## Retries and timeouts
+
+The client retries a failed request up to `maxRetries` times (default 2):
+
+- `429 rate_limited`, waiting for `Retry-After` (at most 60 seconds).
+- 5xx responses, network errors and timeouts, with exponential backoff and jitter, starting under 0.5 s and capped at 8 s.
+
+Other 4xx responses throw right away. `timeoutMs` (default `30_000`) applies to each attempt. Cancel a call with an `AbortSignal`:
+
+```ts
+const wuapi = new Wuapi({ timeoutMs: 10_000, maxRetries: 4 });
+
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 5_000);
+await wuapi.messages.get("msg_...", { signal: controller.signal });
+```
+
+## Idempotency
 
 Every `POST` carries an `Idempotency-Key` header, generated per call when you do not pass one, so a retried send or create is answered with the first response (`Idempotent-Replayed: true`) instead of running twice. Pass your own key to make retries across processes safe too:
 
@@ -348,7 +393,18 @@ new Wuapi({
 | `usage` | `get`, `byProject` |
 | client | `me()`, `withProject(project)`, `project` |
 
-Account-level resources take the `accountId` first. Full API reference: [wuapi.dev/docs](https://wuapi.dev/docs) and [openapi.json](https://wuapi.dev/openapi.json).
+Account-level resources take the `accountId` first.
+
+## Links
+
+- Documentation: [wuapi.dev/docs](https://wuapi.dev/docs)
+- OpenAPI spec: [wuapi.dev/openapi.json](https://wuapi.dev/openapi.json)
+- The docs as one Markdown file, for coding agents: [wuapi.dev/llms-full.txt](https://wuapi.dev/llms-full.txt)
+- Releases and changelog: [GitHub Releases](https://github.com/wuapidev/wuapi-typescript/releases)
+
+## Contributing
+
+This repository mirrors the SDK from the wuapi monorepo, where it is developed. Issues are welcome here, and a maintainer ports pull requests: see [CONTRIBUTING.md](CONTRIBUTING.md). To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## License
 
