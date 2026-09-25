@@ -50,13 +50,13 @@ jobs:
           echo "::error::Publishing runs from main only (this run is on ${GITHUB_REF}). Re-run on main, or tick dry-run."
           exit 1
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Tags, to start the release notes at the previous v<version> tag.
           fetch-depth: 0
 
       # Trusted publishing needs Node 22.14 or later and npm 11.5.1 or later.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
 
@@ -64,7 +64,7 @@ jobs:
         run: npm install --global npm@^11.5.1 && npm --version
 
       - name: Install
-        run: npm install --no-package-lock --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: Plan
         id: plan

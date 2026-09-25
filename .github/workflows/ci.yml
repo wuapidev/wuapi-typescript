@@ -26,16 +26,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The dev tooling (vitest 4) needs Node 20.19 or later. The built
-        # package itself runs on Node 18+ (engines in package.json).
-        node: [20, 22, 24]
+        # Maintained Node lines, which the dev tooling (vitest 4) supports.
+        # The built package itself runs on Node 18+ (engines in package.json).
+        node: [22, 24, 26]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
       - name: Install
-        run: npm install --no-package-lock --no-audit --no-fund
+        run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
