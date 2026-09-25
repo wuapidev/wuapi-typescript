@@ -92,6 +92,27 @@ function onNpm(name, version) {
   }
 }
 
+/** Every version npm has for the package; empty when the package is not on npm yet. */
+function publishedVersions(name) {
+  try {
+    const out = execFileSync("npm", ["view", name, "versions", "--json"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+    if (out === "") return [];
+    const found = JSON.parse(out);
+    return Array.isArray(found) ? found : [found];
+  } catch (e) {
+    const stderr = String(e.stderr ?? "") + String(e.stdout ?? "");
+    if (/E404|404 Not Found/.test(stderr)) return [];
+    throw new Error(`npm view ${name} versions failed:\n${stderr}`);
+  }
+}
+
+function highest(versions) {
+  return versions.reduce((top, v) => (top === null || compare(v, top) > 0 ? v : top), null);
+}
+
 function suggestions(base) {
   const { core, pre } = parse(base);
   const [major, minor, patch] = core;
@@ -123,8 +144,19 @@ function checkBump(base, head) {
     return;
   }
   parse(to);
+  const name = JSON.parse(git("show", `${head}:${pkgPath}/package.json`)).name;
+  // A base version that never reached npm is not a release: what must be
+  // exceeded is the highest version npm has (none before the first publish).
+  // This is what lets the pre-launch reset to 0.1.0 through.
+  if (compare(to, from) <= 0 && !onNpm(name, from)) {
+    const top = highest(publishedVersions(name));
+    if (top === null || compare(to, top) > 0) {
+      if (onNpm(name, to)) fail(`${name}@${to} is already on npm. Pick a version npm does not have yet.`);
+      console.log(`${pkgPath}: ${from} on the base branch was never published; ${to} is above what npm has (${top ?? "nothing yet"}).`);
+      return;
+    }
+  }
   if (compare(to, from) > 0) {
-    const name = JSON.parse(git("show", `${head}:${pkgPath}/package.json`)).name;
     if (onNpm(name, to)) {
       fail(`${name}@${to} is already on npm. Pick a version npm does not have yet, above ${from}.`);
     }
