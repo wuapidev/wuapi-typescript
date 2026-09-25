@@ -1,5 +1,5 @@
 {
-  "name": "wuapi",
+  "name": "@wuapi/sdk",
   "version": "0.1.0",
   "description": "TypeScript SDK for wuapi, an unofficial WhatsApp API. Link numbers by QR or pairing code, send and receive messages, manage chats, contacts, groups and channels, split them into projects and verify webhooks.",
   "license": "MIT",
