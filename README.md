@@ -27,7 +27,7 @@ const wuapi = new Wuapi({ apiKey: process.env.WUAPI_API_KEY });
 // 1. Pick where the number's traffic exits: use the phone number's country.
 const [location] = await wuapi.proxyLocations.list({ country: "VE" }).toArray(1);
 
-// 2. Create an account. Requires an active subscription (402 otherwise).
+// 2. Create an account. Your first one links with no card; sending starts with the free trial (402 before it).
 const account = await wuapi.accounts.create({
   name: "Support line",
   proxyLocation: { country: location!.country, city: location!.city },

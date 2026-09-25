@@ -1,0 +1,178 @@
+#!/usr/bin/env node
+// Release helpers for the `wuapi` npm package, used by
+// .github/workflows/release-sdk.yml. Node built-ins only.
+//
+//   node scripts/release.mjs check-bump <base-sha> <head-sha>
+//     Pull requests: fails when a file that ships in (or builds) the package
+//     changed but package.json's version is not above the base branch's.
+//   node scripts/release.mjs plan
+//     Prints `key=value` lines for $GITHUB_OUTPUT: version, tag, dist_tag,
+//     prerelease, published (whether npm already has this version).
+//
+// See RELEASING.md for the rule and the release process.
+
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const pkgDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: pkgDir, encoding: "utf8" }).trim();
+const pkgPath = relative(repoRoot, pkgDir).split("\\").join("/"); // packages/wuapi-sdk
+
+/**
+ * What a release is made of: the files npm packs (`files` in package.json:
+ * dist, built from src; README.md; LICENSE; package.json itself) and the
+ * configs that decide the build. Changes anywhere else in the package (tests,
+ * vitest.config.ts, RELEASING.md, scripts/) do not need a new version.
+ */
+const RELEASED = [/^src\//, /^package\.json$/, /^README\.md$/, /^LICENSE$/, /^tsconfig(\.build)?\.json$/];
+
+const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z.-]+)?$/;
+
+function parse(version) {
+  const m = SEMVER.exec(version);
+  if (!m) throw new Error(`\`${version}\` is not a semver version`);
+  return { core: [Number(m[1]), Number(m[2]), Number(m[3])], pre: m[4] ? m[4].split(".") : [] };
+}
+
+/** Semver precedence: negative when a < b, 0 when equal, positive when a > b. */
+function compare(a, b) {
+  const x = parse(a);
+  const y = parse(b);
+  for (let i = 0; i < 3; i++) if (x.core[i] !== y.core[i]) return x.core[i] - y.core[i];
+  if (!x.pre.length || !y.pre.length) return y.pre.length - x.pre.length; // a release outranks its pre-releases
+  for (let i = 0; i < Math.max(x.pre.length, y.pre.length); i++) {
+    const p = x.pre[i];
+    const q = y.pre[i];
+    if (p === undefined) return -1;
+    if (q === undefined) return 1;
+    if (p === q) continue;
+    const pn = /^\d+$/.test(p);
+    const qn = /^\d+$/.test(q);
+    if (pn && qn) return Number(p) - Number(q);
+    if (pn !== qn) return pn ? -1 : 1;
+    return p < q ? -1 : 1;
+  }
+  return 0;
+}
+
+function git(...args) {
+  return execFileSync("git", args, { cwd: repoRoot, encoding: "utf8" });
+}
+
+function versionAt(ref) {
+  try {
+    return JSON.parse(git("show", `${ref}:${pkgPath}/package.json`)).version;
+  } catch {
+    return null; // the package does not exist there
+  }
+}
+
+function localPackage() {
+  return JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8"));
+}
+
+/** Whether npm has this exact version. Throws on anything but "found" or "not found". */
+function onNpm(name, version) {
+  try {
+    const out = execFileSync("npm", ["view", `${name}@${version}`, "version", "--json"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+    // Older npm prints nothing for an unknown version of a known package; newer
+    // npm answers E404. A match is `"x.y.z"` or, on newer npm, `["x.y.z"]`.
+    if (out === "") return false;
+    const found = JSON.parse(out);
+    return Array.isArray(found) ? found.includes(version) : found === version;
+  } catch (e) {
+    const stderr = String(e.stderr ?? "") + String(e.stdout ?? "");
+    if (/E404|404 Not Found/.test(stderr)) return false; // the package itself is not on npm yet
+    throw new Error(`npm view ${name}@${version} failed:\n${stderr}`);
+  }
+}
+
+function suggestions(base) {
+  const { core, pre } = parse(base);
+  const [major, minor, patch] = core;
+  if (pre.length) return [`${major}.${minor}.${patch}`, `${major}.${minor}.${patch}-${bumpPre(pre)}`];
+  return [`${major}.${minor}.${patch + 1}`, `${major}.${minor + 1}.0`, `${major}.${minor}.${patch + 1}-beta.0`];
+}
+
+function bumpPre(pre) {
+  const last = pre.at(-1);
+  return /^\d+$/.test(last) ? [...pre.slice(0, -1), Number(last) + 1].join(".") : [...pre, 0].join(".");
+}
+
+function checkBump(base, head) {
+  if (!base || !head) throw new Error("usage: release.mjs check-bump <base-sha> <head-sha>");
+  const changed = git("diff", "--name-only", `${base}...${head}`, "--", pkgPath)
+    .split("\n")
+    .filter(Boolean)
+    .map((f) => f.slice(pkgPath.length + 1));
+  const released = changed.filter((f) => RELEASED.some((re) => re.test(f)));
+  if (released.length === 0) {
+    console.log(`No released file of ${pkgPath} changed (${changed.length ? changed.join(", ") : "nothing"}): no version bump needed.`);
+    return;
+  }
+  const from = versionAt(base);
+  const to = versionAt(head);
+  if (to === null) throw new Error(`${pkgPath}/package.json is missing at ${head}`);
+  if (from === null) {
+    console.log(`${pkgPath} is new on this branch; it will publish as ${to}.`);
+    return;
+  }
+  parse(to);
+  if (compare(to, from) > 0) {
+    const name = JSON.parse(git("show", `${head}:${pkgPath}/package.json`)).name;
+    if (onNpm(name, to)) {
+      fail(`${name}@${to} is already on npm. Pick a version npm does not have yet, above ${from}.`);
+    }
+    console.log(`${pkgPath}: ${from} -> ${to}. It publishes when this is merged into the default branch.`);
+    return;
+  }
+  const next = suggestions(from);
+  fail(
+    [
+      `${pkgPath} changed but its version was not bumped (${to} here, ${from} on the base branch).`,
+      `Changed released files: ${released.join(", ")}.`,
+      `Every change to these files ships to npm on merge, so give it a new version above ${from}:`,
+      `  1. Set "version" in ${pkgPath}/package.json to ${next.map((v) => `\`${v}\``).join(", ")} or another version above ${from}.`,
+      `  2. Set VERSION in ${pkgPath}/src/core.ts to the same value (test/version.test.ts checks it).`,
+      `A version with a pre-release part (\`-beta.0\`) publishes under the \`next\` dist-tag instead of \`latest\`.`,
+      `Test-only changes (test/, vitest.config.ts) and ${pkgPath}/RELEASING.md need no bump. See ${pkgPath}/RELEASING.md.`,
+    ].join("\n"),
+  );
+}
+
+function fail(message) {
+  // One annotation on package.json in the pull request, then the full text in the log.
+  console.log(`::error file=${pkgPath}/package.json,title=SDK version not bumped::${message.split("\n")[0]}`);
+  console.error(message);
+  process.exit(1);
+}
+
+function plan() {
+  const { name, version } = localPackage();
+  const { pre } = parse(version);
+  const prerelease = pre.length > 0;
+  const lines = {
+    name,
+    version,
+    tag: `sdk-v${version}`,
+    dist_tag: prerelease ? "next" : "latest",
+    prerelease: String(prerelease),
+    published: String(onNpm(name, version)),
+  };
+  for (const [k, v] of Object.entries(lines)) console.log(`${k}=${v}`);
+}
+
+const [cmd, ...args] = process.argv.slice(2);
+try {
+  if (cmd === "check-bump") checkBump(args[0], args[1]);
+  else if (cmd === "plan") plan();
+  else throw new Error("usage: release.mjs check-bump <base-sha> <head-sha> | plan");
+} catch (e) {
+  console.error(e instanceof Error ? e.message : e);
+  process.exit(2);
+}

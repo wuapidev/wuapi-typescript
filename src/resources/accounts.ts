@@ -52,8 +52,9 @@ export class Accounts extends Resource {
 
   /**
    * Start linking a new number, exiting from `proxyLocation` (see
-   * `proxyLocations.list()`). Requires an active subscription (402
-   * otherwise). Pass `pairingPhone` to link by pairing code instead of QR
+   * `proxyLocations.list()`). A new organization links its first account
+   * with no card; after that it needs an active or trialing subscription
+   * (402 otherwise). Pass `pairingPhone` to link by pairing code instead of QR
    * code, then `waitForPairingCode`.
    */
   create(params: AccountCreateParams, options?: CallOptions): Promise<Account> {

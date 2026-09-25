@@ -415,62 +415,176 @@ export interface Message {
   updatedAt: string;
 }
 
-export type SendType =
-  | "text"
-  | "image"
-  | "video"
-  | "audio"
-  | "voice"
-  | "document"
-  | "sticker"
-  | "location"
-  | "contact"
-  | "contacts"
-  | "poll"
-  | "calendar_event";
-
 export interface SendMedia {
   /** https URL our servers fetch. */
   url: string;
+  /** Guessed from the URL extension when omitted. Voice notes: send ogg/opus, nothing is transcoded. */
   mimeType?: string;
   filename?: string;
-  /** Video only: play as a GIF. */
+}
+
+export interface SendVideoMedia extends SendMedia {
+  /** Play it as a GIF. */
   gifPlayback?: boolean;
 }
 
-export interface SendMessageParams {
+export interface SendLocation {
+  latitude: number;
+  longitude: number;
+  name?: string;
+  address?: string;
+}
+
+export interface SendPoll {
+  name: string;
+  /** 2 to 12 unique, non-blank options of at most 100 characters. */
+  options: string[];
+  /** How many options a voter may pick. 0 (default) means any number. */
+  selectableCount?: number;
+}
+
+export interface SendCalendarEvent {
+  name: string;
+  description?: string;
+  /** ISO 8601. */
+  startsAt: string;
+  /** Not before `startsAt`. */
+  endsAt?: string;
+  location?: { name: string; latitude?: number; longitude?: number };
+  /** Make it a scheduled WhatsApp call. WhatsApp generates the call link. */
+  callType?: "audio" | "video";
+  allowExtraGuests?: boolean;
+}
+
+export interface SendLinkPreview {
+  url: string;
+  title: string;
+  description?: string;
+  /** JPEG, base64. */
+  thumbnailBase64?: string;
+}
+
+/** Fields every send type takes. */
+export interface SendMessageBase {
+  /** The account to send from. It must be `ready`. */
   accountId: string;
-  /** A contact id, a group id (`…@g.us`) or a channel id (`…@newsletter`, admins only). */
+  /**
+   * A contact id, a group id (`…@g.us`) or a channel id (`…@newsletter`,
+   * admins only). Channels take only `text`, `image`, `video` and `document`.
+   */
   to: string;
-  type?: SendType;
-  text?: string;
-  media?: SendMedia;
-  location?: { latitude: number; longitude: number; name?: string; address?: string };
-  contact?: ContactCard;
-  /** 2 to 20 cards. */
-  contacts?: ContactCard[];
-  poll?: { name: string; options: string[]; selectableCount?: number };
-  calendarEvent?: {
-    name: string;
-    description?: string;
-    /** ISO 8601. */
-    startsAt: string;
-    endsAt?: string;
-    location?: { name: string; latitude?: number; longitude?: number };
-    callType?: "audio" | "video";
-    allowExtraGuests?: boolean;
-  };
+  /** Contact ids to mention. Not for channel posts. */
   mentions?: ContactId[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
   forwarded?: boolean;
-  viewOnce?: boolean;
   disappearingSeconds?: DisappearingSeconds;
-  linkPreview?: { url: string; title: string; description?: string; thumbnailBase64?: string };
-  /** A wuapi message id in the same chat to quote. */
+  /** A wuapi message id in the same chat to quote. Not for channel posts. */
   replyToMessageId?: string;
   metadata?: Record<string, string>;
 }
+
+/** A text message. `type` may be omitted: the API sends a body without one as text. */
+export interface SendTextMessageParams extends SendMessageBase {
+  type?: "text";
+  /** Not blank; at most 4096 characters. */
+  text: string;
+  linkPreview?: SendLinkPreview;
+}
+
+export interface SendImageMessageParams extends SendMessageBase {
+  type: "image";
+  media: SendMedia;
+  /** Caption. */
+  text?: string;
+  viewOnce?: boolean;
+}
+
+export interface SendVideoMessageParams extends SendMessageBase {
+  type: "video";
+  media: SendVideoMedia;
+  /** Caption. */
+  text?: string;
+  viewOnce?: boolean;
+}
+
+export interface SendAudioMessageParams extends SendMessageBase {
+  type: "audio";
+  media: SendMedia;
+  /** Caption. */
+  text?: string;
+  viewOnce?: boolean;
+}
+
+/** An audio sent as a voice note. Send ogg/opus: nothing is transcoded. */
+export interface SendVoiceMessageParams extends SendMessageBase {
+  type: "voice";
+  media: SendMedia;
+  /** Caption. */
+  text?: string;
+  viewOnce?: boolean;
+}
+
+export interface SendDocumentMessageParams extends SendMessageBase {
+  type: "document";
+  media: SendMedia;
+  /** Caption. */
+  text?: string;
+}
+
+export interface SendStickerMessageParams extends SendMessageBase {
+  type: "sticker";
+  media: SendMedia;
+  /** Caption. */
+  text?: string;
+}
+
+export interface SendLocationMessageParams extends SendMessageBase {
+  type: "location";
+  location: SendLocation;
+}
+
+export interface SendContactMessageParams extends SendMessageBase {
+  type: "contact";
+  contact: ContactCard;
+}
+
+export interface SendContactsMessageParams extends SendMessageBase {
+  type: "contacts";
+  /** 2 to 20 cards. Use `type: "contact"` for one. */
+  contacts: ContactCard[];
+}
+
+export interface SendPollMessageParams extends SendMessageBase {
+  type: "poll";
+  poll: SendPoll;
+}
+
+export interface SendCalendarEventMessageParams extends SendMessageBase {
+  type: "calendar_event";
+  calendarEvent: SendCalendarEvent;
+}
+
+/**
+ * What `messages.send()` takes, discriminated by `type`: each type requires
+ * its own field (`text`, `media`, `location`, `contact`, `contacts`, `poll` or
+ * `calendarEvent`). Mirrors `SendMessageRequest` in openapi.json.
+ */
+export type SendMessageParams =
+  | SendTextMessageParams
+  | SendImageMessageParams
+  | SendVideoMessageParams
+  | SendAudioMessageParams
+  | SendVoiceMessageParams
+  | SendDocumentMessageParams
+  | SendStickerMessageParams
+  | SendLocationMessageParams
+  | SendContactMessageParams
+  | SendContactsMessageParams
+  | SendPollMessageParams
+  | SendCalendarEventMessageParams;
+
+export type SendType = NonNullable<SendMessageParams["type"]>;
 
 export interface MessageListParams extends ProjectListParams {
   accountId?: string;
@@ -483,15 +597,27 @@ export interface MessageDeleteParams {
   forEveryone?: boolean;
 }
 
-export interface StoryCreateParams {
-  type?: "text" | "image" | "video";
-  text?: string;
-  media?: { url: string; mimeType?: string };
-  /** Text stories: `#RRGGBB`. */
+/** A text story. `type` may be omitted: the API posts a body without one as text. */
+export interface TextStoryCreateParams {
+  type?: "text";
+  /** Not blank; at most 4096 characters. */
+  text: string;
+  /** `#RRGGBB`. */
   backgroundColor?: string;
   /** WhatsApp's story font: 0, 1, 2, 6, 7, 8, 9 or 10. */
   font?: 0 | 1 | 2 | 6 | 7 | 8 | 9 | 10;
 }
+
+/** An image or video story. */
+export interface MediaStoryCreateParams {
+  type: "image" | "video";
+  media: { url: string; mimeType?: string };
+  /** Caption. */
+  text?: string;
+}
+
+/** What `stories.create()` takes, discriminated by `type`. Mirrors `StoryCreateRequest` in openapi.json. */
+export type StoryCreateParams = TextStoryCreateParams | MediaStoryCreateParams;
 
 // ---------- chats ----------
 
