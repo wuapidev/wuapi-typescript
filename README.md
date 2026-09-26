@@ -182,17 +182,18 @@ await wuapi.accounts.update(accountId, { rejectCalls: true, rejectCallsMessage: 
 
 ## Pacing
 
-Each number sends at most 12 messages a minute, 5 a minute to people who never wrote to it, and shows "typing..." for 800 to 6000 ms first. A paced message waits in the queue up to 60 minutes. Those are defaults, tunable per account:
+Each number sends one message at a time. The anti-ban protections are off by default: no per-minute cap, no first-contact cap, no typing. Turn them on per account before bulk, cold or marketing sends; the recommended values are 12 messages a minute, 5 a minute to people who never wrote to it, and "typing..." for 800 to 6000 ms first. With a cap on, a paced message waits in the queue up to 60 minutes.
 
 ```ts
 const acc = await wuapi.accounts.update(accountId, {
-  pacing: { messagesPerMinute: 20, typing: { maxMs: 4000 }, queueTimeoutMinutes: 120 },
+  pacing: { messagesPerMinute: 12, firstContactPerMinute: 5, typing: { enabled: true } },
 });
 acc.pacing; // effective values, with custom: true
-await wuapi.accounts.update(accountId, { pacing: null }); // back to the defaults
+await wuapi.accounts.update(accountId, { pacing: { messagesPerMinute: 0 } }); // 0 turns a cap off
+await wuapi.accounts.update(accountId, { pacing: null }); // back to the defaults: every protection off
 ```
 
-Ranges: `messagesPerMinute` 1 to 30, `firstContactPerMinute` 1 to `messagesPerMinute`, `typing.minMs` 0 to 10000, `typing.maxMs` `minMs` to 20000, `typing.charsPerSecond` 5 to 100, `queueTimeoutMinutes` 1 to 1440. Faster pacing raises the chance WhatsApp restricts the number.
+Ranges: `messagesPerMinute` 0 to 30, `firstContactPerMinute` 0 to `messagesPerMinute` (0 to 30 while that is 0), `typing.minMs` 0 to 10000, `typing.maxMs` `minMs` to 20000, `typing.charsPerSecond` 5 to 100, `queueTimeoutMinutes` 1 to 1440. Guide: https://wuapi.dev/docs#sending-safely
 
 ## Lists and pagination
 

@@ -230,17 +230,23 @@ export interface ProxyLocationListParams extends ListParams {
 
 export type AccountStatus = "initializing" | "qr_ready" | "authenticating" | "ready" | "disconnected" | "failed";
 
-/** Effective pacing of an account. Defaults: 12/min, 5/min to first contacts, typing 800 to 6000 ms at 25 chars/s, 60 min queue timeout. */
+/**
+ * Effective pacing of an account. The anti-ban protections are off by default:
+ * `messagesPerMinute` 0 (no cap, no gap), `firstContactPerMinute` 0 (no cap),
+ * typing disabled (800 to 6000 ms at 25 chars/s when on), 60 min queue timeout.
+ * Recommended for bulk, cold or marketing sends: 12/min, 5/min to first
+ * contacts, typing on.
+ */
 export interface AccountPacing {
   messagesPerMinute: number;
   firstContactPerMinute: number;
   typing: { enabled: boolean; minMs: number; maxMs: number; charsPerSecond: number };
   queueTimeoutMinutes: number;
-  /** `true` when any value differs from the defaults. */
+  /** `true` when any value differs from the defaults (every protection off). */
   custom: boolean;
 }
 
-/** A pacing change, merged over the stored values. `null` on a field resets it to the default. */
+/** A pacing change, merged over the stored values. `0` turns a cap off; `null` on a field resets it to the default (off). */
 export interface AccountPacingUpdate {
   messagesPerMinute?: number | null;
   firstContactPerMinute?: number | null;
