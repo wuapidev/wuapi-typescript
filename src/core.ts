@@ -174,7 +174,10 @@ export class HttpClient {
       }
 
       const error = await this.#toError(response);
-      const retryable = response.status === 429 || response.status >= 500;
+      // A Retry-After longer than we would wait (a cooldown, e.g. a proxy
+      // location change: 10 minutes) fails now instead of retrying too early.
+      const tooLong = error.retryAfter !== undefined && error.retryAfter * 1000 > MAX_RETRY_AFTER_MS;
+      const retryable = (response.status === 429 || response.status >= 500) && !tooLong;
       if (retryable && canRetry) {
         const wait =
           error.retryAfter !== undefined

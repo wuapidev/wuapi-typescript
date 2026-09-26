@@ -207,15 +207,19 @@ export interface ProxyLocation {
   /** City code from `proxyLocations.list()`: lowercase, one word, accents kept: `"santiago"`, `"bogotá"`. The unaccented form is accepted too. */
   city: string;
   /**
-   * `false` (the default): the city is preferred. When no residential IP is
-   * free there, the exit comes from another city in the same country instead
-   * of keeping the number offline. `true`: the exact city is required, and the
-   * number may stay offline longer while no IP is free there.
+   * `false` (the default): the city is preferred. If no residential IP is free
+   * in that city when the number needs a new exit, it may get an exit in
+   * another city of the same country instead of staying offline, and it stays
+   * on that exit while the exit is healthy. `true`: the exact city is
+   * required, and the number may stay offline longer while no IP is free there.
    */
   strictCity?: boolean;
 }
 
-/** A proxy location as accounts and invitations return it: `strictCity` is always set. */
+/** The request shape of a proxy location (the API's `ProxyLocationInput`): `strictCity` is optional. */
+export type ProxyLocationInput = ProxyLocation;
+
+/** A proxy location as accounts and invitations return it (the API's `ProxyLocation`): `strictCity` is always set. */
 export interface ProxyLocationResource extends ProxyLocation {
   strictCity: boolean;
 }
@@ -224,7 +228,9 @@ export interface ProxyLocationResource extends ProxyLocation {
  * A change to an account's location: `{country, city}` moves it, `{strictCity}`
  * alone switches whether its city is exact, both do both (an omitted
  * `strictCity` is kept). Any change gives the number a new exit IP and
- * reconnects it; WhatsApp may ask the phone to confirm the link again.
+ * reconnects it; WhatsApp may ask the phone to confirm the link again. A
+ * connected number changes location at most once every 10 minutes: earlier,
+ * `429 rate_limited` with `retryAfter` (the client does not retry it).
  */
 export type ProxyLocationUpdate =
   | { country: string; city: string; strictCity?: boolean }

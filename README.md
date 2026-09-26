@@ -87,6 +87,8 @@ console.log(message.id, message.status); // "queued"
 
 `proxyLocation` is required: every account connects through its own residential proxy, and `{ country, city }` says where it exits. `proxyLocations.list()` returns every supported pair (`country` is ISO 3166-1 alpha-2, `city` a lowercase slug); anything else answers `400 unsupported_proxy_location`. Search it with `q`, which ignores case and accents and returns the best match first: `proxyLocations.list({ q: "sao" })` starts with São Paulo.
 
+The city is preferred unless `proxyLocation.strictCity` is `true`: if no residential IP is free in that city when the number needs a new exit, it may get one in another city of the same country, and it stays on that exit while it is healthy. `accounts.update(id, { proxyLocation })` moves a number or switches `strictCity`; a connected number changes location at most once every 10 minutes, and an earlier change throws `429 rate_limited` with `retryAfter` (not retried by the client).
+
 A send returns the message with `status: "queued"`. The outcome arrives as the `message.sent` or `message.failed` webhook, or by calling `wuapi.messages.get(id)`. A recipient without WhatsApp fails with `error.code: "not_on_whatsapp"`.
 
 While a message is still `queued`, `messages.edit` sends it with the new text instead and `messages.delete` cancels it (it ends `failed` with `error.code: "cancelled"`). One being handed to WhatsApp at that moment answers `409 message_sending`: retry in a few seconds.

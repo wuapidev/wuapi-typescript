@@ -7,7 +7,9 @@ import type {
   AccountCreateParams,
   AccountUpdateParams,
   HistorySyncSetting,
+  Invitation,
   InvitationCreateParams,
+  ProxyLocationInput,
   ProxyLocationResource,
   SendMessageParams,
   SendType,
@@ -95,5 +97,11 @@ describe("proxy location and reconnecting", () => {
     // @ts-expect-error country and city go together
     const half: AccountUpdateParams = { proxyLocation: { country: "VE" } };
     expect([create, moveTo, strictOnly, half]).toHaveLength(4);
+    // Matches the API: ProxyLocation (output) requires strictCity, ProxyLocationInput (request) does not.
+    expectTypeOf<Invitation["proxyLocation"]>().toEqualTypeOf<ProxyLocationResource | null>();
+    const input: ProxyLocationInput = { country: "VE", city: "caracas" };
+    // @ts-expect-error output always carries strictCity
+    const output: ProxyLocationResource = { country: "VE", city: "caracas" };
+    expect([input, output]).toHaveLength(2);
   });
 });

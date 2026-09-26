@@ -166,6 +166,21 @@ describe("retries", () => {
     expect(calls).toHaveLength(2);
   });
 
+  it("does not retry when Retry-After is longer than it would wait (a cooldown)", async () => {
+    const { fetch, calls } = mockFetch([
+      { status: 429, body: { code: "rate_limited", message: "Changed less than 10 minutes ago.", details: { retryAfterMs: 600_000 } }, headers: { "Retry-After": "600" } },
+      { status: 200, body: account() },
+    ]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    await expect(client.accounts.update("acc_1", { proxyLocation: { strictCity: true } })).rejects.toMatchObject({
+      status: 429,
+      code: "rate_limited",
+      retryAfter: 600,
+      details: { retryAfterMs: 600_000 },
+    });
+    expect(calls).toHaveLength(1);
+  });
+
   it("gives up after maxRetries and throws the last error", async () => {
     const reply = { status: 429, body: { code: "rate_limited", message: "Slow down." }, headers: { "Retry-After": "0" } };
     const { fetch, calls } = mockFetch([reply, reply, reply]);
