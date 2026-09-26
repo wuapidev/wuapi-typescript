@@ -58,7 +58,7 @@ const wuapi = new Wuapi({ apiKey: process.env.WUAPI_API_KEY });
 // 1. Pick where the number's traffic exits: use the phone number's country.
 const [location] = await wuapi.proxyLocations.list({ country: "VE" }).toArray(1);
 
-// 2. Create an account. Your first one links with no card; sending starts with the free trial (402 before it).
+// 2. Create an account. The Free plan includes 1 number, 2,000 messages and 0.5 GB of proxy traffic a month, no card.
 const account = await wuapi.accounts.create({
   name: "Support line",
   proxyLocation: { country: location!.country, city: location!.city },
@@ -313,7 +313,7 @@ const report = await wuapi.usage.byProject({ month: "2026-09" }); // one line pe
 for (const line of report.projects) console.log(line.externalId, line.billableAccountCount, line.sentMessageCount);
 ```
 
-wuapi bills the organization across all its projects; `usage.byProject` is what you rebill from. `usage.get()` is the organization's own bill this month: every billable account includes 0.5 GB of proxy, pooled, so `proxyBytes` is everything used, `includedProxyBytes` the pool, and `proxyFeeCents` bills only `billableProxyBytes`, the traffic past it, at $0.99 per GB.
+wuapi bills the organization across all its projects; `usage.byProject` is what you rebill from. `usage.get()` is the organization's own bill this month: every billable account includes 0.5 GB of proxy, pooled (traffic used on the Free plan is never billed), so `proxyBytes` is everything used, `includedProxyBytes` the pool, and `proxyFeeCents` bills only `billableProxyBytes`, the traffic past it, at $0.99 per GB.
 
 ## Errors
 
