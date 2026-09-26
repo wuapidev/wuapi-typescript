@@ -2,7 +2,17 @@
 // `@ts-expect-error` below must still be an error. The runtime assertions only
 // keep vitest from reporting an empty file.
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { Account, AccountCreateParams, AccountUpdateParams, HistorySyncSetting, InvitationCreateParams, SendMessageParams, SendType, StoryCreateParams } from "../src/index.js";
+import type {
+  Account,
+  AccountCreateParams,
+  AccountUpdateParams,
+  HistorySyncSetting,
+  InvitationCreateParams,
+  ProxyLocationResource,
+  SendMessageParams,
+  SendType,
+  StoryCreateParams,
+} from "../src/index.js";
 
 const base = { accountId: "acc_1", to: "+584241112233" };
 
@@ -71,5 +81,19 @@ describe("historySync", () => {
     // @ts-expect-error only none or recent
     const full: AccountUpdateParams = { historySync: "full" };
     expect([create, update, invite, full]).toHaveLength(4);
+  });
+});
+
+describe("proxy location and reconnecting", () => {
+  it("strictCity is optional on input, always set on output; a PATCH moves or switches it", () => {
+    expectTypeOf<Account["reconnecting"]>().toEqualTypeOf<boolean>();
+    expectTypeOf<Account["proxyLocation"]>().toEqualTypeOf<ProxyLocationResource | null>();
+    expectTypeOf<ProxyLocationResource["strictCity"]>().toEqualTypeOf<boolean>();
+    const create: AccountCreateParams = { proxyLocation: { country: "VE", city: "caracas", strictCity: true } };
+    const moveTo: AccountUpdateParams = { proxyLocation: { country: "VE", city: "maracaibo" } };
+    const strictOnly: AccountUpdateParams = { proxyLocation: { strictCity: true } };
+    // @ts-expect-error country and city go together
+    const half: AccountUpdateParams = { proxyLocation: { country: "VE" } };
+    expect([create, moveTo, strictOnly, half]).toHaveLength(4);
   });
 });

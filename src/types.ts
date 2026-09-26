@@ -206,7 +206,29 @@ export interface ProxyLocation {
   country: string;
   /** City code from `proxyLocations.list()`: lowercase, one word, accents kept: `"santiago"`, `"bogotá"`. The unaccented form is accepted too. */
   city: string;
+  /**
+   * `false` (the default): the city is preferred. When no residential IP is
+   * free there, the exit comes from another city in the same country instead
+   * of keeping the number offline. `true`: the exact city is required, and the
+   * number may stay offline longer while no IP is free there.
+   */
+  strictCity?: boolean;
 }
+
+/** A proxy location as accounts and invitations return it: `strictCity` is always set. */
+export interface ProxyLocationResource extends ProxyLocation {
+  strictCity: boolean;
+}
+
+/**
+ * A change to an account's location: `{country, city}` moves it, `{strictCity}`
+ * alone switches whether its city is exact, both do both (an omitted
+ * `strictCity` is kept). Any change gives the number a new exit IP and
+ * reconnects it; WhatsApp may ask the phone to confirm the link again.
+ */
+export type ProxyLocationUpdate =
+  | { country: string; city: string; strictCity?: boolean }
+  | { country?: never; city?: never; strictCity: boolean };
 
 export interface ProxyLocationItem {
   object: "proxy_location";
@@ -272,12 +294,20 @@ export interface Account {
   projectId: string | null;
   name: string | null;
   status: AccountStatus;
+  /**
+   * `true` while the account, after being `ready`, is reconnecting on its own
+   * (`disconnected`, `initializing` or `authenticating`) within the offline
+   * tolerance: messages sent meanwhile wait for it. `false` when `ready`, when
+   * it is down for a reason it does not recover from, and once the tolerance
+   * runs out.
+   */
+  reconnecting: boolean;
   /** Linked number in E.164, once known. */
   phone: string | null;
   /** The linked number's WhatsApp display name. */
   profileName: string | null;
   /** Where the account's proxy exits. `null` on accounts linked before proxy locations existed. */
-  proxyLocation: ProxyLocation | null;
+  proxyLocation: ProxyLocationResource | null;
   /** PNG data URL of the QR code, while `status` is `qr_ready` and the account links by QR code. */
   qrCodeUrl: string | null;
   /** Pairing code (`XXXX-XXXX`) for accounts linking by phone number. `null` once `ready`. */
@@ -325,6 +355,8 @@ export interface AccountUpdateParams {
    * after a reconnect.
    */
   historySync?: HistorySyncSetting;
+  /** Move the number, or switch whether its city is exact. A location change: new exit IP, the session reconnects. */
+  proxyLocation?: ProxyLocationUpdate;
 }
 
 export interface PairingCode {
@@ -979,7 +1011,7 @@ export interface Invitation {
   /** Set once `status` is `completed`. */
   accountId: string | null;
   /** The preset location, or what the invitee picked on the page. `null` until chosen. */
-  proxyLocation: ProxyLocation | null;
+  proxyLocation: ProxyLocationResource | null;
   failureReason: string | null;
   returnUrl: string | null;
   metadata: Record<string, string>;
