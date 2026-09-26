@@ -21,7 +21,7 @@ npm install @wuapidev/sdk
 # or: pnpm add @wuapidev/sdk / yarn add @wuapidev/sdk / bun add @wuapidev/sdk
 ```
 
-Using a coding agent? Paste [wuapi.dev/llms-full.txt](https://wuapi.dev/llms-full.txt), the whole documentation as one Markdown file.
+Using a coding agent? Paste [wuapi.dev/llms-full.txt](https://wuapi.dev/llms-full.txt), the whole documentation as one Markdown file. To let Claude, Cursor or VS Code act on your account directly, use the MCP server, [`@wuapidev/mcp`](https://wuapi.dev/docs/mcp), built on this SDK.
 
 ## Requirements
 
@@ -404,6 +404,7 @@ Account-level resources take the `accountId` first.
 - Documentation: [wuapi.dev/docs](https://wuapi.dev/docs)
 - OpenAPI spec: [wuapi.dev/openapi.json](https://wuapi.dev/openapi.json)
 - The docs as one Markdown file, for coding agents: [wuapi.dev/llms-full.txt](https://wuapi.dev/llms-full.txt)
+- MCP server for Claude, Cursor, VS Code and other MCP clients: [wuapi.dev/docs/mcp](https://wuapi.dev/docs/mcp) (`npx -y @wuapidev/mcp`)
 - Releases and changelog: [GitHub Releases](https://github.com/wuapidev/wuapi-typescript/releases)
 
 ## Contributing
