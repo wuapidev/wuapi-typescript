@@ -312,7 +312,7 @@ const report = await wuapi.usage.byProject({ month: "2026-09" }); // one line pe
 for (const line of report.projects) console.log(line.externalId, line.billableAccountCount, line.sentMessageCount);
 ```
 
-wuapi bills the organization across all its projects; `usage.byProject` is what you rebill from. `usage.get()` is the organization's own bill this month: every billable account includes 0.5 GB of proxy, pooled, so `proxyBytes` is everything used, `includedProxyBytes` the pool, and `proxyFeeCents` bills only `billableProxyBytes`, the traffic past it, at $3 per GB.
+wuapi bills the organization across all its projects; `usage.byProject` is what you rebill from. `usage.get()` is the organization's own bill this month: every billable account includes 0.5 GB of proxy, pooled, so `proxyBytes` is everything used, `includedProxyBytes` the pool, and `proxyFeeCents` bills only `billableProxyBytes`, the traffic past it, at $0.99 per GB.
 
 ## Errors
 
