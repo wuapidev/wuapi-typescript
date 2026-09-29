@@ -1,15 +1,14 @@
-import { WuapiError } from "./errors.js";
-import type { CallOptions } from "./types.js";
+// Copied by wuapi-codegen from packages/sdk-codegen/templates/typescript/src/core.ts. Do not edit here.
 
-export const VERSION = "0.4.0";
-export const DEFAULT_BASE_URL = "https://api.wuapi.dev";
+import { WuapiError } from "./errors.js";
+import { API_KEY_ENV, DEFAULT_BASE_URL, IDEMPOTENCY_HEADER, PROJECT_HEADER } from "./meta.js";
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
 export interface ClientOptions {
-  /** API key (`wu_live_...`). Falls back to the `WUAPI_API_KEY` environment variable. */
+  /** API key (`wu_live_...`). Falls back to the API key environment variable. */
   apiKey?: string;
-  /** Defaults to https://api.wuapi.dev. */
+  /** Defaults to the API's production URL. */
   baseUrl?: string;
   /** Per-attempt timeout in milliseconds. Defaults to 30000. */
   timeoutMs?: number;
@@ -19,37 +18,44 @@ export interface ClientOptions {
   fetch?: FetchLike;
   /**
    * Act inside one project: its id, or `ext:<externalId>`. Sent as the
-   * `Wuapi-Project` header on every request. With a project API key it may be
+   * project header on every request. With a project API key it may be
    * omitted (the key already names its project).
    */
   project?: string;
 }
 
-export const PROJECT_HEADER = "Wuapi-Project";
+/** Per-call options, accepted by every method as its last argument. */
+export interface CallOptions {
+  /**
+   * Sent as the idempotency header. Methods that accept one get a random key
+   * when this is omitted, so a retried request is replayed, not repeated.
+   */
+  idempotencyKey?: string;
+  /** Aborts the request. */
+  signal?: AbortSignal;
+}
 
 export type Query = Record<string, string | number | boolean | undefined | null>;
 
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
 export interface RequestOptions {
-  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  method: HttpMethod;
   path: string;
   query?: Query | undefined;
   body?: unknown;
-  /**
-   * Sent as `Idempotency-Key`. Every POST gets a random one when this is
-   * omitted, so a retried POST is replayed by the server instead of repeated.
-   */
+  /** The operation accepts an idempotency key: send one on every attempt. */
+  idempotent?: boolean | undefined;
   idempotencyKey?: string | undefined;
   signal?: AbortSignal | undefined;
 }
-
-export const IDEMPOTENCY_HEADER = "Idempotency-Key";
 
 const MAX_BACKOFF_MS = 8_000;
 const MAX_RETRY_AFTER_MS = 60_000;
 
 function readEnvApiKey(): string | undefined {
-  const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
-  return proc?.env?.WUAPI_API_KEY;
+  const proc = (globalThis as { process?: { env: Record<string, string | undefined> } }).process;
+  return proc?.env[API_KEY_ENV];
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -67,7 +73,7 @@ export class HttpClient {
   readonly baseUrl: string;
   readonly timeoutMs: number;
   readonly maxRetries: number;
-  /** The `Wuapi-Project` header value, when this client is scoped to a project. */
+  /** The project header value, when this client is scoped to a project. */
   readonly project: string | undefined;
   readonly #apiKey: string;
   readonly #fetch: FetchLike;
@@ -76,15 +82,15 @@ export class HttpClient {
   constructor(options: ClientOptions = {}) {
     const apiKey = options.apiKey ?? readEnvApiKey();
     if (!apiKey) {
-      throw new Error(
-        "wuapi: missing API key. Pass { apiKey } or set the WUAPI_API_KEY environment variable.",
-      );
+      throw new Error(`wuapi: missing API key. Pass { apiKey } or set the ${API_KEY_ENV} environment variable.`);
     }
     this.#apiKey = apiKey;
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.timeoutMs = options.timeoutMs ?? 30_000;
     this.maxRetries = Math.max(0, options.maxRetries ?? 2);
-    if (!options.fetch && typeof globalThis.fetch !== "function") throw new Error("wuapi: no global fetch found. Use Node 18+ or pass { fetch }.");
+    if (!options.fetch && typeof globalThis.fetch !== "function") {
+      throw new Error("wuapi: no global fetch found. Use Node 18+ or pass { fetch }.");
+    }
     this.#fetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
     const project = options.project?.trim();
     if (project !== undefined && project.length > 200) throw new Error("wuapi: `project` must be at most 200 characters.");
@@ -94,7 +100,7 @@ export class HttpClient {
 
   /** A client with the same configuration, scoped to another project. */
   withProject(project: string): HttpClient {
-    if (!project || !project.trim()) throw new Error("wuapi: withProject needs a project id or `ext:<externalId>`.");
+    if (!project.trim()) throw new Error("wuapi: withProject needs a project id or `ext:<externalId>`.");
     return new HttpClient({ ...this.#options, project });
   }
 
@@ -118,9 +124,9 @@ export class HttpClient {
       Accept: "application/json",
     };
     if (this.project) headers[PROJECT_HEADER] = this.project;
-    // Every method is safe to repeat: GET/PUT/PATCH/DELETE by nature, POST
-    // through the idempotency key the server replays.
-    if (opts.method === "POST" || opts.idempotencyKey !== undefined) {
+    // Operations that take an idempotency key get one on every attempt, so a
+    // retry is replayed by the server instead of repeated.
+    if (opts.idempotent || opts.idempotencyKey !== undefined) {
       headers[IDEMPOTENCY_HEADER] = opts.idempotencyKey ?? randomKey();
     }
     let body: string | undefined;
@@ -137,7 +143,7 @@ export class HttpClient {
       const onAbort = () => controller.abort();
       opts.signal?.addEventListener("abort", onAbort, { once: true });
       try {
-        if (opts.signal?.aborted) throw opts.signal.reason ?? new Error("Aborted");
+        if (opts.signal?.aborted) throw opts.signal.reason;
         response = await this.#fetch(url, {
           method: opts.method,
           headers,
@@ -179,10 +185,7 @@ export class HttpClient {
       const tooLong = error.retryAfter !== undefined && error.retryAfter * 1000 > MAX_RETRY_AFTER_MS;
       const retryable = (response.status === 429 || response.status >= 500) && !tooLong;
       if (retryable && canRetry) {
-        const wait =
-          error.retryAfter !== undefined
-            ? Math.min(error.retryAfter * 1000, MAX_RETRY_AFTER_MS)
-            : this.#backoff(attempt);
+        const wait = error.retryAfter !== undefined ? error.retryAfter * 1000 : this.#backoff(attempt);
         await sleep(wait);
         continue;
       }
@@ -202,22 +205,20 @@ export class HttpClient {
     let message = `Request failed with status ${response.status}.`;
     let details: Record<string, unknown> | undefined;
     try {
-      const text = await response.text();
-      if (text) {
-        const parsed = JSON.parse(text) as { code?: unknown; message?: unknown; details?: unknown };
-        if (typeof parsed.code === "string") code = parsed.code;
-        if (typeof parsed.message === "string") message = parsed.message;
-        if (parsed.details && typeof parsed.details === "object") {
-          details = parsed.details as Record<string, unknown>;
-        }
+      const parsed = JSON.parse(await response.text()) as { code?: unknown; message?: unknown; details?: unknown };
+      if (typeof parsed.code === "string") code = parsed.code;
+      if (typeof parsed.message === "string") message = parsed.message;
+      if (parsed.details && typeof parsed.details === "object") {
+        details = parsed.details as Record<string, unknown>;
       }
     } catch {
-      // Non-JSON body: keep the generic message.
+      // Empty or non-JSON body: keep the generic code and message.
     }
     return new WuapiError({ status: response.status, code, message, details, requestId, retryAfter });
   }
 }
 
+/** Encodes one path segment. */
 export const enc = encodeURIComponent;
 
 /** Spread into `RequestOptions`. */
@@ -225,14 +226,9 @@ export function callOpts(options: CallOptions | undefined): Pick<RequestOptions,
   return { idempotencyKey: options?.idempotencyKey, signal: options?.signal };
 }
 
-/** A random idempotency key, so automatic retries never repeat a POST. */
+/** A random idempotency key, so automatic retries never repeat a request. */
 export function randomKey(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (c?.randomUUID) return c.randomUUID();
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
-}
-
-/** `/v1/accounts/{accountId}` plus a suffix, with every segment encoded. */
-export function accountPath(accountId: string, suffix = ""): string {
-  return `/v1/accounts/${enc(accountId)}${suffix}`;
 }

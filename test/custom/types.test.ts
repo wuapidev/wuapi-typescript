@@ -1,3 +1,6 @@
+// Hand-written. Part of the 0.4.0 compatibility gate: these tests were the
+// hand-written SDK's own suite, kept unchanged (paths aside) so the generated
+// SDK must keep every 0.4.0 call, type and behavior working.
 // Type-level tests: `bun run typecheck` compiles this file, so every
 // `@ts-expect-error` below must still be an error. The runtime assertions only
 // keep vitest from reporting an empty file.
@@ -14,7 +17,7 @@ import type {
   SendMessageParams,
   SendType,
   StoryCreateParams,
-} from "../src/index.js";
+} from "../../src/index.js";
 
 const base = { accountId: "acc_1", to: "+584241112233" };
 

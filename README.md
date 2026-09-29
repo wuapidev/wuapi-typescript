@@ -156,12 +156,12 @@ const poll = await wuapi.messages.send({
   type: "poll",
   poll: { name: "Lunch?", options: ["Pizza", "Sushi"], selectableCount: 1 },
 });
-await wuapi.messages.vote(poll.id, ["Sushi"]);
+await wuapi.messages.vote(poll.id, { options: ["Sushi"] });
 
 // Edit, star, react to and delete what you sent.
-await wuapi.messages.edit(message.id, "Your order has shipped. Tracking: 1Z999.");
+await wuapi.messages.edit(message.id, { text: "Your order has shipped. Tracking: 1Z999." });
 await wuapi.messages.star(message.id);
-await wuapi.messages.react(message.id, "\u{1F44D}");
+await wuapi.messages.react(message.id, { emoji: "\u{1F44D}" });
 await wuapi.messages.delete(message.id);
 
 // Send to a group, or post to a channel you administer, by its id.
@@ -176,7 +176,7 @@ Everything else works on the account: chats, contacts, the profile, privacy, sto
 ```ts
 await wuapi.chats.sendReadReceipts(accountId, "+584241112233");      // blue ticks
 await wuapi.chats.archive(accountId, "+584241112233");
-const [check] = await wuapi.contacts.check(accountId, ["+584241112233"]);
+const { items: [check] } = await wuapi.contacts.check(accountId, { phones: ["+584241112233"] });
 await wuapi.stories.create(accountId, { text: "Open until 18:00", backgroundColor: "#0F766E" });
 await wuapi.groups.create(accountId, { name: "Customers", community: true });
 await wuapi.accounts.update(accountId, { rejectCalls: true, rejectCallsMessage: "Please write to us." });
@@ -362,6 +362,14 @@ await wuapi.messages.send({ accountId, to: "+584241112233", text: "Shipped." }, 
 
 Every method takes this options object last: `{ idempotencyKey?, signal? }`.
 
+## Calling convention
+
+Path ids come first as strings (`accountId`, `groupId`, ...), then one params object with the query and body fields, then the options object. Methods whose body is a single field, like `messages.react`, also still accept that field on its own (`react(id, "\u{1F44D}")`), and the batch methods (`contacts.check`, `contacts.lookup`, `groups.addParticipants` and the other participant and join-request methods) then resolve to a bare array. That form is deprecated and goes away in 1.0: pass the params object and read `items`.
+
+```ts
+await wuapi.groups.addParticipants(accountId, groupId, { contactIds: ["+584241112233"] }); // { object: "list", items: [...] }
+```
+
 ## Options
 
 ```ts
@@ -409,6 +417,10 @@ Account-level resources take the `accountId` first.
 - The docs as one Markdown file, for coding agents: [wuapi.dev/llms-full.txt](https://wuapi.dev/llms-full.txt)
 - MCP server for Claude, Cursor, VS Code and other MCP clients: [wuapi.dev/docs/mcp](https://wuapi.dev/docs/mcp) (`npx -y @wuapidev/mcp`)
 - Releases and changelog: [GitHub Releases](https://github.com/wuapidev/wuapi-typescript/releases)
+
+## How this SDK is made
+
+The client, its types and its tests are generated from the [OpenAPI spec](https://wuapi.dev/openapi.json), so every endpoint and field the API documents is here, typed, on release day. A few helpers the spec cannot describe (the account wait helpers, `WEBHOOK_EVENT_TYPES` and the names earlier versions exported) are written by hand next to the generated code. The changes of each version are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Contributing
 

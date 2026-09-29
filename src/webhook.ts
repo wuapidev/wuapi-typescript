@@ -1,3 +1,5 @@
+// Copied by wuapi-codegen from packages/sdk-codegen/templates/typescript/src/webhook.ts. Do not edit here.
+
 import { WebhookVerificationError } from "./errors.js";
 import type { WebhookEvent } from "./types.js";
 

@@ -1,3 +1,5 @@
+// Copied by wuapi-codegen from packages/sdk-codegen/templates/typescript/src/errors.ts. Do not edit here.
+
 /** Error thrown for any non-2xx API response, network failure or timeout. */
 export class WuapiError extends Error {
   /** HTTP status. 0 for network errors and timeouts. */

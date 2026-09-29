@@ -1,4 +1,20 @@
-import type { ListParams, Page } from "./types.js";
+// Copied by wuapi-codegen from packages/sdk-codegen/templates/typescript/src/pagination.ts. Do not edit here.
+
+/** Query parameters every list method accepts. */
+export interface ListParams {
+  /** Page size, 1 to 100. */
+  limit?: number;
+  /** Opaque cursor from a previous page's `nextCursor`. */
+  cursor?: string;
+}
+
+/** One page of a list. */
+export interface Page<T> {
+  object: "list";
+  items: T[];
+  /** Pass as `cursor` to get the next page. `null` on the last page. */
+  nextCursor: string | null;
+}
 
 export type PageFetcher<T, P extends ListParams> = (params: P) => Promise<Page<T>>;
 

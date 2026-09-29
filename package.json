@@ -1,6 +1,6 @@
 {
   "name": "@wuapidev/sdk",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "TypeScript SDK for wuapi, a WhatsApp API for developers. Link numbers by QR or pairing code, send and receive messages, manage chats, contacts, groups and channels, split them into projects and verify webhooks.",
   "license": "MIT",
   "type": "module",
@@ -16,6 +16,7 @@
   "files": [
     "dist",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "sideEffects": false,
@@ -40,11 +41,12 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "prepublishOnly": "npm run typecheck && npm run test && npm run build"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.0.14",
     "typescript": "^5.6.0",
     "vitest": "^4.0.14"
   },

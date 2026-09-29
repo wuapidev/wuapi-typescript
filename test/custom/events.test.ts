@@ -1,3 +1,6 @@
+// Hand-written. Part of the 0.4.0 compatibility gate: these tests were the
+// hand-written SDK's own suite, kept unchanged (paths aside) so the generated
+// SDK must keep every 0.4.0 call, type and behavior working.
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, expectTypeOf, it } from "vitest";
@@ -12,12 +15,12 @@ import {
   type WebhookEvent,
   type WebhookEndpoint,
   type WebhookEventType,
-} from "../src/index.js";
+} from "../../src/index.js";
 
 // The backend's list, imported from the source of truth rather than copied.
 // It exists only in the wuapi monorepo; the standalone SDK repository
 // (wuapidev/wuapi-typescript) skips this one test.
-const EVENTS_URL = new URL("../../../apps/wuapi/convex/lib/events.ts", import.meta.url);
+const EVENTS_URL = new URL("../../../../apps/wuapi/convex/lib/events.ts", import.meta.url);
 const EVENTS_TS = EVENTS_URL.href;
 const IN_MONOREPO = existsSync(fileURLToPath(EVENTS_URL));
 
@@ -34,6 +37,10 @@ describe("webhook event types", () => {
     expect(new Set(WEBHOOK_EVENT_TYPES).size).toBe(35);
     for (const t of WEBHOOK_EVENT_TYPES) expect(t).toMatch(/^[a-z_]+\.[a-z_]+$/);
     expect(WEBHOOK_EVENT_TYPES.join(" ")).not.toMatch(/newsletter|status\./);
+  });
+
+  it("list exactly the spec's WebhookEventType", () => {
+    expectTypeOf<(typeof WEBHOOK_EVENT_TYPES)[number]>().toEqualTypeOf<WebhookEventType>();
   });
 
   it("type the envelope and data.object per event", () => {

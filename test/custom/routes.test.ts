@@ -1,5 +1,8 @@
+// Hand-written. Part of the 0.4.0 compatibility gate: these tests were the
+// hand-written SDK's own suite, kept unchanged (paths aside) so the generated
+// SDK must keep every 0.4.0 call, type and behavior working.
 import { describe, expect, it } from "vitest";
-import { Wuapi } from "../src/index.js";
+import { Wuapi } from "../../src/index.js";
 import { mockFetch } from "./helpers.js";
 
 const KEY = "wu_live_" + "a".repeat(48);

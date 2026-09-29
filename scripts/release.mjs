@@ -38,11 +38,11 @@ function repo() {
 
 /**
  * What a release is made of: the files npm packs (`files` in package.json:
- * dist, built from src; README.md; LICENSE; package.json itself) and the
+ * dist, built from src; README.md; CHANGELOG.md; LICENSE; package.json itself) and the
  * configs that decide the build. Changes anywhere else in the package (tests,
  * vitest.config.ts, RELEASING.md, scripts/) do not need a new version.
  */
-const RELEASED = [/^src\//, /^package\.json$/, /^README\.md$/, /^LICENSE$/, /^tsconfig(\.build)?\.json$/];
+const RELEASED = [/^src\//, /^package\.json$/, /^README\.md$/, /^CHANGELOG\.md$/, /^LICENSE$/, /^tsconfig(\.build)?\.json$/];
 
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z.-]+)?$/;
 

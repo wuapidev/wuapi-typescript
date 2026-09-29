@@ -15,6 +15,14 @@ open an issue here. A short snippet that reproduces the problem, the SDK
 version and your runtime (Node, Bun, Deno or an edge runtime, with its
 version) help a lot.
 
+## The code is generated
+
+`src/` and `test/` are generated from the API's
+[OpenAPI spec](https://wuapi.dev/openapi.json), except `src/custom/` and
+`test/custom/`, which are written by hand. A fix to a generated file lands as a
+change to the spec or to the generator in the monorepo, and the file is
+regenerated from it.
+
 ## Pull requests
 
 You can open a pull request here too. We don't merge it in this repository:
