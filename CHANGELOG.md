@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.8.0
+
+### Added
+
+- `contacts.list(accountId, { q?, limit?, cursor? })`: the account's address book as its
+  phone synced it to wuapi, ordered by saved name, as a paginator of `Contact`.
+  `contacts.get(accountId, contactId)` returns one. Neither asks WhatsApp.
+- `Contact.phone`, `Contact.savedName` and `Contact.profileName`. The contact list fills
+  them; `contacts.lookup` and `contact.updated` answer `savedName` and `profileName` as
+  `null`.
+- `Chat.pictureId`: the id of the chat's picture (a contact's or a group's), `null` when
+  unknown. Compare it with the picture you cached before calling `contacts.getPicture`,
+  which also takes a group id.
+- `MessageMedia.width`, `MessageMedia.height` and `MessageMedia.durationSeconds`. Set for
+  an image sent through the API; `null` for received files for now.
+- Types `ContactsListParams`.
+
 ## 0.7.0
 
 ### Added

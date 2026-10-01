@@ -6,12 +6,91 @@ import type {
   ContactsCheckParams,
   ContactsGetPictureParams,
   ContactsListBlockedParams,
+  ContactsListParams,
   ContactsLookupParams,
   ContactsResolveLinkParams,
 } from "../../src/index.js";
 import { KEY, mockFetch } from "../helpers.js";
 
 describe("contacts", () => {
+  it("list: GET /v1/accounts/{accountId}/contacts pages through every item", async () => {
+    const item = {
+      object: "contact",
+      id: "id 1",
+      accountId: "accountId 1",
+      phone: "phone 1",
+      lid: "lid 1",
+      savedName: "savedName 1",
+      profileName: "profileName 1",
+      username: "username 1",
+      about: "about 1",
+      pictureId: "pictureId 1",
+      businessName: "businessName 1",
+      deviceCount: 1,
+    };
+    const params: ContactsListParams = { q: "q 1", limit: 50, cursor: "cursor 1" };
+    const { fetch, calls } = mockFetch([
+      { status: 200, body: { object: "list", items: [item], nextCursor: "cursor_2" } },
+      { status: 200, body: { object: "list", items: [item], nextCursor: null } },
+    ]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const items = await client.contacts.list("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", params).toArray();
+    expect(items).toEqual([item, item]);
+    expect(calls.map((c) => c.method)).toEqual(["GET", "GET"]);
+    expect(calls.map((c) => c.url)).toEqual([
+      "https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/contacts?q=q+1&limit=50&cursor=cursor+1",
+      "https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/contacts?q=q+1&limit=50&cursor=cursor_2",
+    ]);
+  });
+
+  it("list: fetches one page without params", async () => {
+    const item = {
+      object: "contact",
+      id: "id 1",
+      accountId: "accountId 1",
+      phone: "phone 1",
+      lid: "lid 1",
+      savedName: "savedName 1",
+      profileName: "profileName 1",
+      username: "username 1",
+      about: "about 1",
+      pictureId: "pictureId 1",
+      businessName: "businessName 1",
+      deviceCount: 1,
+    };
+    const page = { object: "list", items: [item], nextCursor: null };
+    const { fetch, calls } = mockFetch([{ status: 200, body: page }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    expect(await client.contacts.list("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr").page()).toEqual(page);
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/contacts");
+  });
+
+  it("get: GET /v1/accounts/{accountId}/contacts/{contactId}", async () => {
+    const response = {
+      object: "contact",
+      id: "id 1",
+      accountId: "accountId 1",
+      phone: "phone 1",
+      lid: "lid 1",
+      savedName: "savedName 1",
+      profileName: "profileName 1",
+      username: "username 1",
+      about: "about 1",
+      pictureId: "pictureId 1",
+      businessName: "businessName 1",
+      deviceCount: 1,
+    };
+    const { fetch, calls } = mockFetch([{ status: 200, body: response }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.contacts.get("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", "+584241112233");
+    expect(result).toEqual(response);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("GET");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/contacts/%2B584241112233");
+    expect(calls[0]!.body).toBeUndefined();
+    expect(calls[0]!.headers["Idempotency-Key"]).toBeUndefined();
+  });
+
   it("check: POST /v1/accounts/{accountId}/contacts/check", async () => {
     const response = {
       object: "list",
@@ -71,7 +150,10 @@ describe("contacts", () => {
           object: "contact",
           id: "id 1",
           accountId: "accountId 1",
+          phone: "phone 1",
           lid: "lid 1",
+          savedName: "savedName 1",
+          profileName: "profileName 1",
           username: "username 1",
           about: "about 1",
           pictureId: "pictureId 1",
@@ -101,7 +183,10 @@ describe("contacts", () => {
           object: "contact",
           id: "id 1",
           accountId: "accountId 1",
+          phone: "phone 1",
           lid: "lid 1",
+          savedName: "savedName 1",
+          profileName: "profileName 1",
           username: "username 1",
           about: "about 1",
           pictureId: "pictureId 1",

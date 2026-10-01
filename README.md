@@ -179,6 +179,9 @@ for await (const chat of wuapi.chats.list(accountId, { unread: true })) {
 }
 await wuapi.chats.sendReadReceipts(accountId, "+584241112233");      // blue ticks
 await wuapi.chats.archive(accountId, "+584241112233");
+for await (const contact of wuapi.contacts.list(accountId)) {       // the phone's address book, by saved name
+  console.log(contact.savedName, contact.phone ?? contact.lid);
+}
 const { items: [check] } = await wuapi.contacts.check(accountId, { phones: ["+584241112233"] });
 await wuapi.stories.create(accountId, { text: "Open until 18:00", backgroundColor: "#0F766E" });
 await wuapi.groups.create(accountId, { name: "Customers", community: true });

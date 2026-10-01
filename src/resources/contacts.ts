@@ -13,6 +13,7 @@ import type {
   ContactsCheckParams,
   ContactsGetPictureParams,
   ContactsListBlockedParams,
+  ContactsListParams,
   ContactsLookupParams,
   ContactsResolveLinkParams,
   Picture,
@@ -21,6 +22,46 @@ import type {
 import { Resource } from "./base.js";
 
 export class ContactsResource extends Resource {
+  /**
+   * List contacts
+   *
+   * The account's contacts, ordered by saved name: its address book as the linked phone synced it to wuapi. Read from what wuapi stored, without asking WhatsApp, so it works while the account is not `ready`.
+   *
+   * What is in it: every contact the phone holds a saved name or a business name for. WhatsApp sends the address book to a linked device when the number is linked and again whenever it resyncs it, and wuapi stores it then, and after that every contact the phone adds, renames or deletes, as it happens. So the list is empty until the first sync after linking finishes (seconds to a few minutes), a contact deleted on the phone leaves the list, and people the account only chatted with, without saving them, are not in it: those are in `GET …/chats`.
+   *
+   * `about` and `deviceCount` are `null` here (ask `POST …/contacts/lookup`); `username` and `pictureId` are what wuapi has seen so far. With `q`, the contacts that match, best match first.
+   *
+   * `GET /v1/accounts/{accountId}/contacts`
+   */
+  list(
+    accountId: string,
+    params: ContactsListParams = {},
+    options?: CallOptions,
+  ): Paginator<Contact, ContactsListParams> {
+    return this._list<Contact, ContactsListParams>(
+      `/v1/accounts/${enc(accountId)}/contacts`,
+      params,
+      (p) => ({ q: p.q, limit: p.limit, cursor: p.cursor }),
+      options,
+    );
+  }
+
+  /**
+   * Get a contact
+   *
+   * One contact of the account's address book, by its number or its `lid:<digits>` id, from what wuapi stored (see `GET …/contacts` for what that holds). A number or id the address book does not hold answers `404 not_found`, even when the account has a chat with it: `POST …/contacts/lookup` asks WhatsApp about any number.
+   *
+   * `GET /v1/accounts/{accountId}/contacts/{contactId}`
+   */
+  get(accountId: string, contactId: string, options?: CallOptions): Promise<Contact> {
+    return this._request<Contact>(
+      "GET",
+      `/v1/accounts/${enc(accountId)}/contacts/${enc(contactId)}`,
+      {},
+      options,
+    );
+  }
+
   /**
    * Check numbers on WhatsApp
    *
@@ -57,7 +98,7 @@ export class ContactsResource extends Resource {
   /**
    * Look up contacts
    *
-   * About text, picture id, verified business name and device count. Read-only.
+   * About text, picture id, verified business name, username and device count, asked from WhatsApp for 1 to 50 contacts. Read-only. `savedName` and `profileName` are `null` here: the account's address book is `GET …/contacts`. The picture ids and usernames it returns are kept on the chats and contacts wuapi stores.
    *
    * `POST /v1/accounts/{accountId}/contacts/lookup`
    */
@@ -90,7 +131,9 @@ export class ContactsResource extends Resource {
   /**
    * Get a profile picture
    *
-   * The contact's profile picture, if this account can see it.
+   * The profile picture of a contact, or the picture of a group: `{contactId}` also takes a group id (`120363041234567890@g.us`), which is how a chat list shows group pictures. `id` is the picture's id and `url` a WhatsApp URL that expires, so download it and keep it by `id`. `404 picture_not_found` when it has no picture or this account may not see it (the contact's privacy settings); a community's own picture may answer that too. A channel id is passed to WhatsApp as it is, with no guarantee of an answer: a channel's picture is `pictureUrl` on the channel.
+   *
+   * What this call learns is kept: `pictureId` of the chat and of the contact follows it, so check that field before asking again.
    *
    * `GET /v1/accounts/{accountId}/contacts/{contactId}/picture`
    */

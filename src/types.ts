@@ -410,13 +410,25 @@ export type ChatType = "direct" | "group" | "channel" | "story";
  */
 export interface MessageMedia {
   /**
-   * `downloaded: true`: the file itself. Received: stored by wuapi; the URL does not expire and needs no API key, so anyone who has it can download the file: treat it as a secret. It stops working when the message is deleted. Sent: the URL you gave. `downloaded: false`: `GET /v1/messages/{messageId}/media` on api.wuapi.dev, which needs the API key (`Authorization: Bearer`) and answers a redirect to the file. `null` when wuapi has nothing to fetch the file with (some messages imported by history sync).
+   * `downloaded: true`: the file itself. Received: stored by wuapi; the URL does not expire and needs no API key, so anyone who has it can download the file: treat it as a secret. It stops working when the message is deleted. Sent: the URL you gave. `downloaded: false`: `GET /v1/messages/{messageId}/media` on api.wuapi.dev, which needs the API key (`Authorization: Bearer`) and answers a redirect to the file. A file sent from the phone itself (`source: phone`) is handled like a received one. `null` when wuapi has nothing to fetch the file with. Messages imported by history sync (`source: history`) have no `media` at all: the import carries what a message was, not its file.
    */
   url: string | null;
   mimeType: string | null;
   filename: string | null;
-  /** Bytes, when known. */
+  /**
+   * Bytes, when known: what WhatsApp declared for a received file, the stored file's size, or what was uploaded for a message sent through the API.
+   */
   size: number | null;
+  /**
+   * Pixels, for images, video and stickers. Today only for an image sent through the API (JPEG, PNG or GIF), once it is `sent`; `null` otherwise, including every received file: the WhatsApp engine does not report the dimensions of received media yet.
+   */
+  width: number | null;
+  /** Pixels. Set and `null` together with `width`. */
+  height: number | null;
+  /**
+   * Length of an audio, voice note or video, in seconds. `null` when unknown, which today is always: the WhatsApp engine does not report it yet.
+   */
+  durationSeconds: number | null;
   /** `true`: `url` is the file. `false`: the file is still on WhatsApp; `url` fetches it on first use. */
   downloaded: boolean;
 }
@@ -1105,6 +1117,10 @@ export interface Chat {
   profileName: string | null;
   /** Direct chats: the contact's WhatsApp username (lowercase, without `@`), when WhatsApp shared one. */
   username: string | null;
+  /**
+   * The id of the chat's picture: the contact's profile picture, or the group's. It changes when the picture does, so a client can keep a downloaded picture until this differs, and ask `GET …/contacts/{contactId}/picture` (with this chat's id) only when it does. wuapi learns it from `contact.picture_updated`, from every picture read or set through the API and from contact lookups, never by asking WhatsApp while listing. `null` when unknown (never observed), when the chat has no picture or it is hidden from this account, and for channels (their picture is `pictureUrl` of the channel).
+   */
+  pictureId: string | null;
   /** The chat's latest message. `null` when it is no longer stored. */
   lastMessage: Message | null;
   /** When the latest message was sent or received. Lists are ordered by it, newest first. */
@@ -1211,7 +1227,9 @@ export interface ContactLookupRequest {
   contactIds: string[];
 }
 
-/** A WhatsApp user, as this account sees it. Fields WhatsApp did not send are `null`. */
+/**
+ * A WhatsApp user, as this account sees it. The same object comes from three places, and each fills what it knows: the contact list and `GET …/contacts/{contactId}` read the account's address book as its phone synced it to wuapi (`savedName`, `profileName`, `businessName`, and the `username` and `pictureId` wuapi has seen; `about` and `deviceCount` are `null`); `POST …/contacts/lookup` asks WhatsApp (`about`, `pictureId`, `businessName`, `deviceCount`, `username`; `savedName` and `profileName` are `null`); `contact.updated` carries the field that changed. A field that source does not know is `null`.
+ */
 export interface Contact {
   /** Always `contact`. */
   object: "contact";
@@ -1219,18 +1237,33 @@ export interface Contact {
   id: string;
   /** The account this belongs to. */
   accountId: string;
+  /**
+   * The contact's number in E.164 (`+584241112233`). `null` when WhatsApp hides it and the contact is known only by `lid`.
+   */
+  phone: string | null;
   /** The contact's `lid:<digits>` id, when WhatsApp gave one. */
   lid: string | null;
+  /**
+   * The name the account saved the contact under in its phone's address book, else the contact's business name: the same value as `savedName` of its chat. Set by the contact list and `GET …/contacts/{contactId}`; `null` from a lookup and in `contact.updated`.
+   */
+  savedName: string | null;
+  /**
+   * The contact's WhatsApp profile name, as the account's phone last saw it. `null` when unknown, from a lookup and in `contact.updated`.
+   */
+  profileName: string | null;
   /**
    * The contact's WhatsApp username (lowercase, without the `@`), when they set one and WhatsApp shared it with this account.
    */
   username: string | null;
-  /** About text. */
+  /** About text. Only a lookup and `contact.updated` set it. */
   about: string | null;
+  /**
+   * The id of the contact's profile picture. It changes when the picture does, so a client can keep a downloaded picture until this differs. From a lookup: what WhatsApp answered. From the contact list: the id wuapi last saw (a `contact.picture_updated` event, a lookup, or `GET …/contacts/{contactId}/picture`). `null` when unknown, when the contact has no picture or when it is hidden from this account.
+   */
   pictureId: string | null;
   /** Verified business name. */
   businessName: string | null;
-  /** Devices linked to the contact. */
+  /** Devices linked to the contact. Only a lookup sets it. */
   deviceCount: number | null;
 }
 
@@ -1247,7 +1280,9 @@ export interface ContactList {
 export interface Picture {
   /** Always `picture`. */
   object: "picture";
-  /** Picture id. */
+  /**
+   * Picture id. It changes when the picture does: the same value as `pictureId` on the chat and the contact.
+   */
   id: string | null;
   /** Download URL. `null` right after an upload. */
   url: string | null;
@@ -2293,7 +2328,9 @@ export interface ContactPresence {
   lastSeenAt: string | null;
 }
 
-/** A contact or group picture changed or was removed. */
+/**
+ * A contact or group picture changed or was removed. `pictureId` of the chat (and of the contact) follows.
+ */
 export interface PictureChange {
   /** Always `picture_change`. */
   object: "picture_change";
@@ -3029,6 +3066,24 @@ export type ChatsAddLabelParams = LabelAssignRequest;
 
 /** Params for `labels.upsert`. */
 export type LabelsUpsertParams = LabelUpsertRequest;
+
+/** Params for `contacts.list`. */
+export interface ContactsListParams {
+  /**
+   * Search: the saved name, profile name, business name, username or number. The last word matches as a prefix. Results come best match first, not by name.
+   */
+  q?: string;
+  /**
+   * Page size, 1 to 100.
+   *
+   * @defaultValue `50`
+   */
+  limit?: number;
+  /**
+   * Opaque cursor from a previous page's `nextCursor`. An invalid or expired cursor answers `400 invalid_request`.
+   */
+  cursor?: string;
+}
 
 /** Params for `contacts.check`. */
 export type ContactsCheckParams = ContactCheckRequest;
