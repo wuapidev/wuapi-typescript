@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.0
+
+### Added
+
+- `Chat.pinnedAt`: when the chat was pinned, `null` when it is not pinned or the time is
+  unknown.
+
+### Changed
+
+- `Chat.pinned`, `Chat.archived`, `Chat.muted`, `Chat.unread` and `Chat.unreadCount` are
+  now known for chats that had no change since the number was linked: wuapi takes them
+  from what WhatsApp syncs to the linked number. `null` still means "not known yet".
+  Documentation only; no type changed.
+
 ## 0.10.0
 
 ### Added
