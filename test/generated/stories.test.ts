@@ -22,7 +22,7 @@ describe("stories", () => {
       username: "username 1",
       type: "text",
       text: "text 1",
-      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1", size: 1, downloaded: true },
       location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
       contact: { name: "name 1", phone: "phone 1" },
       contacts: [{ name: "name 1", phone: "phone 1" }],

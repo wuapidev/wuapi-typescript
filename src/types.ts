@@ -188,6 +188,8 @@ export interface Account {
    * Whether the recent chats the phone sends right after linking are imported. `none` by default. WhatsApp sends this history once, right after the number links, so a change applies to the next link. A number that is already linked gets no new history, not even after a reconnect.
    */
   historySync: HistorySyncSetting;
+  /** Which received media is downloaded right away; the rest on demand. `none` for new accounts. */
+  mediaAutoDownload: MediaAutoDownloadSetting;
   /** Your labels. Set from an invitation's `metadata` when the invitee links the number. */
   metadata: Record<string, string>;
   /** When linking first finished. */
@@ -239,6 +241,25 @@ export interface AccountPacingUpdateTyping {
  */
 export type HistorySyncSetting = "none" | "recent";
 
+/**
+ * Which received media is downloaded as soon as it arrives, through the number's proxy (proxy traffic). The rest stays on WhatsApp until requested (`media.url`, `GET /v1/messages/{messageId}/media`).
+ * - `none`: nothing up front; every file on demand. The default for accounts created since on-demand media.
+ * - `all`: every file up front. Accounts created before on-demand media keep this.
+ * - `{maxBytes, types}`: only files of those types up to `maxBytes` bytes up front; the rest on demand.
+ */
+export type MediaAutoDownloadSetting = MediaAutoDownloadSettingVariant1 | MediaAutoDownloadSettingVariant2;
+
+export type MediaAutoDownloadSettingVariant1 = "none" | "all";
+
+export interface MediaAutoDownloadSettingVariant2 {
+  /** Largest file downloaded up front, in bytes. */
+  maxBytes: number;
+  /** Media types downloaded up front. */
+  types: MediaAutoDownloadSettingVariant2TypesItem[];
+}
+
+export type MediaAutoDownloadSettingVariant2TypesItem = "image" | "video" | "audio" | "document" | "sticker";
+
 export interface AccountCreateRequest {
   /** Label, at most 100 characters. */
   name?: string;
@@ -261,7 +282,7 @@ export interface AccountCreateRequest {
 }
 
 /**
- * Provide at least one field. Call settings go to the live session, so the engine must know the account (any status). Pacing and `historySync` are stored even before the account has a session. A `proxyLocation` change moves a live session to the new exit.
+ * Provide at least one field. Call settings go to the live session, so the engine must know the account (any status). Pacing, `historySync` and `mediaAutoDownload` are stored even before the account has a session. A `proxyLocation` change moves a live session to the new exit.
  */
 export interface AccountUpdateRequest {
   name?: string;
@@ -274,6 +295,10 @@ export interface AccountUpdateRequest {
    * Import history at the next link, or not. WhatsApp sends this history once, right after the number links, so a change applies to the next link. A number that is already linked gets no new history, not even after a reconnect.
    */
   historySync?: HistorySyncSetting;
+  /**
+   * Which received media is downloaded right away. Applies to messages received from then on; files already received keep what they had.
+   */
+  mediaAutoDownload?: MediaAutoDownloadSetting;
   /**
    * Move the number, or switch whether its city is exact. A location change: the number gets a new exit IP and its session reconnects.
    */
@@ -380,13 +405,33 @@ export type MessageStatus = "queued" | "sent" | "delivered" | "read" | "failed" 
  */
 export type ChatType = "direct" | "group" | "channel" | "story";
 
+/**
+ * A message's file. Received media is downloaded on demand by default (an account's `mediaAutoDownload`): until someone asks for it, the file stays on WhatsApp, `downloaded` is `false` and `url` is `https://api.wuapi.dev/v1/messages/{messageId}/media`, which needs your API key, downloads the file once through the number's proxy and redirects to it. Once stored, `downloaded` is `true` and `url` is the file itself. Tools that fetch `url` without headers (no-code automations) must send the API key (`Authorization: Bearer`) when `downloaded` is `false`, or call the endpoint with `redirect=false` and use the `url` it returns, which needs no key.
+ */
 export interface MessageMedia {
   /**
-   * Inbound: a URL to download the file. The URL does not expire and needs no API key, so anyone who has it can download the file: treat it as a secret. It stops working when the message is deleted. `null` for messages imported by history sync. Outbound: the URL you sent.
+   * `downloaded: true`: the file itself. Received: stored by wuapi; the URL does not expire and needs no API key, so anyone who has it can download the file: treat it as a secret. It stops working when the message is deleted. Sent: the URL you gave. `downloaded: false`: `GET /v1/messages/{messageId}/media` on api.wuapi.dev, which needs the API key (`Authorization: Bearer`) and answers a redirect to the file. `null` when wuapi has nothing to fetch the file with (some messages imported by history sync).
    */
   url: string | null;
   mimeType: string | null;
   filename: string | null;
+  /** Bytes, when known. */
+  size: number | null;
+  /** `true`: `url` is the file. `false`: the file is still on WhatsApp; `url` fetches it on first use. */
+  downloaded: boolean;
+}
+
+/** A message's stored file, from `GET /v1/messages/{messageId}/media` asked for JSON. */
+export interface MessageMediaFile {
+  /** Always `media`. */
+  object: "media";
+  messageId: string;
+  /** The file. No API key needed. */
+  url: string;
+  mimeType: string | null;
+  filename: string | null;
+  /** Bytes, when known. */
+  size: number | null;
 }
 
 export interface MessageLocation {
@@ -1721,6 +1766,7 @@ export type WebhookEventType =
   | "message.failed"
   | "message.edited"
   | "message.deleted"
+  | "message.media_downloaded"
   | "poll.voted"
   | "group.joined"
   | "group.updated"
@@ -2397,7 +2443,7 @@ export interface AccountEventData {
 }
 
 /**
- * `message.sent` also fires for messages sent from the phone (`source: phone`) and for stories and channel posts. `message.deleted` carries the row with `deletedAt` set and the content cleared.
+ * `message.sent` also fires for messages sent from the phone (`source: phone`) and for stories and channel posts. `message.deleted` carries the row with `deletedAt` set and the content cleared. `message.media_downloaded` fires when wuapi stored, in the background, a received file the account's `mediaAutoDownload` wanted up front but WhatsApp did not hand over at first: `media.downloaded` is now `true` and `media.url` is the file. Files fetched by your own `GET /v1/messages/{messageId}/media` do not fire it.
  */
 export interface MessageEvent {
   /** Event id (`evt_...`). Deduplicate on it. */
@@ -2417,7 +2463,8 @@ export type MessageEventType =
   | "message.delivered"
   | "message.read"
   | "message.failed"
-  | "message.deleted";
+  | "message.deleted"
+  | "message.media_downloaded";
 
 export interface MessageEventData {
   object: Message;
@@ -2886,6 +2933,16 @@ export interface MessagesListParams {
   projectId?: string;
 }
 
+/** Params for `messages.getMedia`. */
+export interface MessagesGetMediaParams {
+  /**
+   * `false` answers JSON with the file's URL instead of the `302` redirect.
+   *
+   * @defaultValue `true`
+   */
+  redirect?: boolean;
+}
+
 /** Params for `messages.edit`. */
 export type MessagesEditParams = MessageEditRequest;
 
@@ -3284,6 +3341,7 @@ export type WebhookEvent =
   | (MessageEvent & { type: "message.read" })
   | (MessageEvent & { type: "message.failed" })
   | (MessageEvent & { type: "message.deleted" })
+  | (MessageEvent & { type: "message.media_downloaded" })
   | MessageEditedEvent
   | PollVotedEvent
   | GroupJoinedEvent

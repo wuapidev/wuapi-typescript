@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.0
+
+### Added
+
+- `messages.getMedia(messageId)`: a message's file as `{ object: "media", url, ... }`,
+  downloading it first when it is still on WhatsApp (on-demand media).
+- `MessageMedia.downloaded` and `MessageMedia.size`. Received media is on demand by
+  default for new accounts: `downloaded: false` means `url` is the API endpoint that
+  fetches it (API key required), not the file.
+- `Account.mediaAutoDownload` and `accounts.update(id, { mediaAutoDownload })`:
+  `"none"`, `"all"` or `{ maxBytes, types }`.
+- The `message.media_downloaded` webhook event: a received file stored by a
+  background retry is ready (`media.downloaded: true`).
+
 ## 0.6.0
 
 ### Added

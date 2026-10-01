@@ -6,6 +6,7 @@ import type {
   MessagesAddLabelParams,
   MessagesDeleteParams,
   MessagesEditParams,
+  MessagesGetMediaParams,
   MessagesListParams,
   MessagesReactParams,
   MessagesSendParams,
@@ -30,7 +31,7 @@ describe("messages", () => {
       username: "username 1",
       type: "text",
       text: "text 1",
-      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1", size: 1, downloaded: true },
       location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
       contact: { name: "name 1", phone: "phone 1" },
       contacts: [{ name: "name 1", phone: "phone 1" }],
@@ -127,7 +128,7 @@ describe("messages", () => {
       username: "username 1",
       type: "text",
       text: "text 1",
-      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1", size: 1, downloaded: true },
       location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
       contact: { name: "name 1", phone: "phone 1" },
       contacts: [{ name: "name 1", phone: "phone 1" }],
@@ -200,7 +201,7 @@ describe("messages", () => {
       username: "username 1",
       type: "text",
       text: "text 1",
-      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1", size: 1, downloaded: true },
       location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
       contact: { name: "name 1", phone: "phone 1" },
       contacts: [{ name: "name 1", phone: "phone 1" }],
@@ -258,7 +259,7 @@ describe("messages", () => {
       username: "username 1",
       type: "text",
       text: "text 1",
-      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1", size: 1, downloaded: true },
       location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
       contact: { name: "name 1", phone: "phone 1" },
       contacts: [{ name: "name 1", phone: "phone 1" }],
@@ -304,6 +305,47 @@ describe("messages", () => {
     expect(calls[0]!.headers["Idempotency-Key"]).toBeUndefined();
   });
 
+  it("getMedia: GET /v1/messages/{messageId}/media", async () => {
+    const response = {
+      object: "media",
+      messageId: "messageId 1",
+      url: "url 1",
+      mimeType: "mimeType 1",
+      filename: "filename 1",
+      size: 1,
+    };
+    const { fetch, calls } = mockFetch([{ status: 200, body: response }]);
+    const params: MessagesGetMediaParams = { redirect: true };
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.messages.getMedia("m17d0a9w2sqc7k3v8x1n5ybr6t4hjp2e", params);
+    expect(result).toEqual(response);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("GET");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/messages/m17d0a9w2sqc7k3v8x1n5ybr6t4hjp2e/media?redirect=true");
+    expect(calls[0]!.body).toBeUndefined();
+    expect(calls[0]!.headers["Idempotency-Key"]).toBeUndefined();
+  });
+
+  it("getMedia: works without params", async () => {
+    const response = {
+      object: "media",
+      messageId: "messageId 1",
+      url: "url 1",
+      mimeType: "mimeType 1",
+      filename: "filename 1",
+      size: 1,
+    };
+    const { fetch, calls } = mockFetch([{ status: 200, body: response }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.messages.getMedia("m17d0a9w2sqc7k3v8x1n5ybr6t4hjp2e");
+    expect(result).toEqual(response);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("GET");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/messages/m17d0a9w2sqc7k3v8x1n5ybr6t4hjp2e/media");
+    expect(calls[0]!.body).toBeUndefined();
+    expect(calls[0]!.headers["Idempotency-Key"]).toBeUndefined();
+  });
+
   it("edit: PATCH /v1/messages/{messageId}", async () => {
     const response = {
       object: "message",
@@ -320,7 +362,7 @@ describe("messages", () => {
       username: "username 1",
       type: "text",
       text: "text 1",
-      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1", size: 1, downloaded: true },
       location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
       contact: { name: "name 1", phone: "phone 1" },
       contacts: [{ name: "name 1", phone: "phone 1" }],
@@ -383,7 +425,7 @@ describe("messages", () => {
       username: "username 1",
       type: "text",
       text: "text 1",
-      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1", size: 1, downloaded: true },
       location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
       contact: { name: "name 1", phone: "phone 1" },
       contacts: [{ name: "name 1", phone: "phone 1" }],
@@ -491,7 +533,7 @@ describe("messages", () => {
       username: "username 1",
       type: "text",
       text: "text 1",
-      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1", size: 1, downloaded: true },
       location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
       contact: { name: "name 1", phone: "phone 1" },
       contacts: [{ name: "name 1", phone: "phone 1" }],
@@ -554,7 +596,7 @@ describe("messages", () => {
       username: "username 1",
       type: "text",
       text: "text 1",
-      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1", size: 1, downloaded: true },
       location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
       contact: { name: "name 1", phone: "phone 1" },
       contacts: [{ name: "name 1", phone: "phone 1" }],
@@ -614,7 +656,7 @@ describe("messages", () => {
       username: "username 1",
       type: "text",
       text: "text 1",
-      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1", size: 1, downloaded: true },
       location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
       contact: { name: "name 1", phone: "phone 1" },
       contacts: [{ name: "name 1", phone: "phone 1" }],
@@ -676,7 +718,7 @@ describe("messages", () => {
       username: "username 1",
       type: "text",
       text: "text 1",
-      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+      media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1", size: 1, downloaded: true },
       location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
       contact: { name: "name 1", phone: "phone 1" },
       contacts: [{ name: "name 1", phone: "phone 1" }],

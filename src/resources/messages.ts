@@ -4,9 +4,11 @@ import { enc, type CallOptions } from "../core.js";
 import type { Paginator } from "../pagination.js";
 import type {
   Message,
+  MessageMediaFile,
   MessagesAddLabelParams,
   MessagesDeleteParams,
   MessagesEditParams,
+  MessagesGetMediaParams,
   MessagesListParams,
   MessagesReactParams,
   MessagesSendParams,
@@ -53,6 +55,28 @@ export class MessagesResource extends Resource {
    */
   get(messageId: string, options?: CallOptions): Promise<Message> {
     return this._request<Message>("GET", `/v1/messages/${enc(messageId)}`, {}, options);
+  }
+
+  /**
+   * Get a message's media
+   *
+   * The message's file. By default the answer is `302 Found` to the file (no API key needed there), so `curl -L`, browsers and HTTP clients download it directly. With `redirect=false`, or an `Accept` header that names only `application/json` (the SDKs), the answer is this JSON with the file's URL instead.
+   *
+   * A received file still on WhatsApp (`media.downloaded: false`, on-demand media) is downloaded first, once, through the number's proxy, and kept: later requests are served from storage. Concurrent requests for the same file wait for that one download. WhatsApp keeps files for a limited time (about two weeks), after which the answer is `410 media_expired`. The account must be `ready` for a first download.
+   *
+   * `GET /v1/messages/{messageId}/media`
+   */
+  getMedia(
+    messageId: string,
+    params: MessagesGetMediaParams = {},
+    options?: CallOptions,
+  ): Promise<MessageMediaFile> {
+    return this._request<MessageMediaFile>(
+      "GET",
+      `/v1/messages/${enc(messageId)}/media`,
+      { query: { redirect: params.redirect } },
+      options,
+    );
   }
 
   /**

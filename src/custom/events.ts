@@ -19,6 +19,7 @@ export const WEBHOOK_EVENT_TYPES = [
   "message.failed",
   "message.edited",
   "message.deleted",
+  "message.media_downloaded",
   "poll.voted",
   "group.joined",
   "group.updated",

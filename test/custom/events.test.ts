@@ -32,9 +32,9 @@ describe("webhook event types", () => {
     expect([...WEBHOOK_EVENT_TYPES]).toEqual([...backend.WEBHOOK_EVENTS]);
   });
 
-  it("are resource.verb_past names, 35 of them, none twice", () => {
-    expect(WEBHOOK_EVENT_TYPES).toHaveLength(35);
-    expect(new Set(WEBHOOK_EVENT_TYPES).size).toBe(35);
+  it("are resource.verb_past names, 36 of them, none twice", () => {
+    expect(WEBHOOK_EVENT_TYPES).toHaveLength(36);
+    expect(new Set(WEBHOOK_EVENT_TYPES).size).toBe(36);
     for (const t of WEBHOOK_EVENT_TYPES) expect(t).toMatch(/^[a-z_]+\.[a-z_]+$/);
     expect(WEBHOOK_EVENT_TYPES.join(" ")).not.toMatch(/newsletter|status\./);
   });
