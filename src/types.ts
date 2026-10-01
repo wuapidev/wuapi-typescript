@@ -190,6 +190,10 @@ export interface Account {
   historySync: HistorySyncSetting;
   /** Which received media is downloaded right away; the rest on demand. `none` for new accounts. */
   mediaAutoDownload: MediaAutoDownloadSetting;
+  /**
+   * What this account's image messages are re-encoded to before their upload. `standard` by default. A send can name its own with `media.quality`.
+   */
+  imageQuality: ImageQualitySetting;
   /** Your labels. Set from an invitation's `metadata` when the invitee links the number. */
   metadata: Record<string, string>;
   /** When linking first finished. */
@@ -260,6 +264,14 @@ export interface MediaAutoDownloadSettingVariant2 {
 
 export type MediaAutoDownloadSettingVariant2TypesItem = "image" | "video" | "audio" | "document" | "sticker";
 
+/**
+ * What an image message is re-encoded to before it is uploaded through the number's proxy (proxy traffic), the way the WhatsApp apps do when a photo is sent. Only image messages: stickers, documents (an image sent as a document included), video and audio always go up as the file they are. An image is left as it is when re-encoding would not make it clearly smaller, and a PNG with transparency stays a PNG.
+ * - `standard`: longest side at most 1600 px, JPEG quality 80. What the WhatsApp apps send by default, and the smallest upload.
+ * - `hd`: longest side at most 4096 px, JPEG quality 90, like the apps' HD switch.
+ * - `original`: the file is not re-encoded. Only lossless steps apply (metadata such as Exif and GPS is removed; the pixels are the same).
+ */
+export type ImageQualitySetting = "standard" | "hd" | "original";
+
 export interface AccountCreateRequest {
   /** Label, at most 100 characters. */
   name?: string;
@@ -299,6 +311,10 @@ export interface AccountUpdateRequest {
    * Which received media is downloaded right away. Applies to messages received from then on; files already received keep what they had.
    */
   mediaAutoDownload?: MediaAutoDownloadSetting;
+  /**
+   * What this account's image messages are re-encoded to before their upload. Applies to images sent from then on; a send that names `media.quality` keeps its own.
+   */
+  imageQuality?: ImageQualitySetting;
   /**
    * Move the number, or switch whether its city is exact. A location change: the number gets a new exit IP and its session reconnects.
    */
@@ -606,6 +622,21 @@ export interface SendMedia {
   filename?: string;
 }
 
+/** An image to send, fetched by our servers. */
+export interface SendImageMedia {
+  /**
+   * Public `http(s)` URL our servers download (up to 5 redirects, 60 seconds, 100 MB), as `wuapi-media-fetcher/1.0 (+https://wuapi.dev)`. Private and internal addresses are refused; hosts with hotlink protection may refuse the download, which fails the message with a message naming the host and its answer (`fetch media from upload.wikimedia.org: HTTP 403`).
+   */
+  url: string;
+  /** Guessed from the URL extension when omitted. Voice notes: send ogg/opus, nothing is transcoded. */
+  mimeType?: string;
+  filename?: string;
+  /**
+   * The quality of this image, instead of the account's `imageQuality`. `hd` is WhatsApp's HD photo; `original` sends the file without re-encoding it.
+   */
+  quality?: ImageQualitySetting;
+}
+
 /** A video to send, fetched by our servers. */
 export interface SendVideoMedia {
   /**
@@ -710,7 +741,7 @@ export interface SendImageMessageRequest {
   to: string;
   /** `image`. */
   type: "image";
-  media: SendMedia;
+  media: SendImageMedia;
   /** Caption. At most 4096 characters. */
   text?: string;
   /** Contact ids to mention. At most 256. Not for channel posts. */
@@ -1039,6 +1070,8 @@ export interface StoryMedia {
    */
   url: string;
   mimeType?: string;
+  /** Images only: the quality of this image, instead of the account's `imageQuality`. */
+  quality?: ImageQualitySetting;
 }
 
 /** A text story. */

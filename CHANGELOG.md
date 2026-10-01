@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.0
+
+### Added
+
+- `media.quality` on an image send (`messages.send`) and on an image story
+  (`stories.create`): `"standard"`, `"hd"` or `"original"`. It overrides the account's
+  setting for that image.
+- `Account.imageQuality` and `accounts.update(id, { imageQuality })`: what the account's
+  images are re-encoded to before their upload. `"standard"` by default (longest side
+  1600 px, JPEG quality 80, as the WhatsApp apps send a photo), `"hd"` (4096 px, quality
+  90) or `"original"` (the file as it is, metadata removed).
+- Types `ImageQualitySetting` and `SendImageMedia`.
+
 ## 0.8.0
 
 ### Added
