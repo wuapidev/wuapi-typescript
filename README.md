@@ -174,6 +174,9 @@ Send types: `text`, `image`, `video`, `audio`, `voice` (an audio sent as a voice
 Everything else works on the account: chats, contacts, the profile, privacy, stories, groups and communities, channels, labels and calls. Each method takes the `accountId` first, and the account must be `ready`. Opposites are two methods: `archive` / `unarchive`, `pin` / `unpin`, `mute` / `unmute`, `block` / `unblock`, `follow` / `unfollow`, `star` / `unstar`.
 
 ```ts
+for await (const chat of wuapi.chats.list(accountId, { unread: true })) {
+  console.log(chat.name ?? chat.id, chat.unreadCount, chat.lastMessage?.text); // null: a state wuapi has not observed yet
+}
 await wuapi.chats.sendReadReceipts(accountId, "+584241112233");      // blue ticks
 await wuapi.chats.archive(accountId, "+584241112233");
 const { items: [check] } = await wuapi.contacts.check(accountId, { phones: ["+584241112233"] });
@@ -390,7 +393,7 @@ new Wuapi({
 | `proxyLocations` | `list` |
 | `accounts` | `list`, `create`, `get`, `update`, `delete`, `reconnect`, `logout`, `createPairingCode`, `setPresence`, `setDefaultDisappearingTimer`, `waitForQrCode`, `waitForPairingCode`, `waitUntilReady` |
 | `messages` | `send`, `list`, `get`, `edit`, `delete`, `react`, `vote`, `star`, `unstar`, `addLabel`, `removeLabel` |
-| `chats` | `sendPresence`, `sendReadReceipts`, `markRead`, `markUnread`, `archive`, `unarchive`, `pin`, `unpin`, `mute`, `unmute`, `delete`, `setDisappearingTimer`, `addLabel`, `removeLabel` |
+| `chats` | `list`, `get`, `sendPresence`, `sendReadReceipts`, `markRead`, `markUnread`, `archive`, `unarchive`, `pin`, `unpin`, `mute`, `unmute`, `delete`, `setDisappearingTimer`, `addLabel`, `removeLabel` |
 | `stories` | `create` |
 | `contacts` | `check`, `lookup`, `getPicture`, `getBusinessProfile`, `subscribePresence`, `block`, `unblock`, `listBlocked`, `getLink`, `resetLink`, `resolveLink` |
 | `bots` | `list` |

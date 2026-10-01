@@ -5,6 +5,7 @@ import { Wuapi } from "../../src/index.js";
 import type {
   ChatsAddLabelParams,
   ChatsDeleteParams,
+  ChatsListParams,
   ChatsMuteParams,
   ChatsSendPresenceParams,
   ChatsSendReadReceiptsParams,
@@ -13,6 +14,246 @@ import type {
 import { KEY, mockFetch } from "../helpers.js";
 
 describe("chats", () => {
+  it("list: GET /v1/accounts/{accountId}/chats pages through every item", async () => {
+    const item = {
+      object: "chat",
+      id: "id 1",
+      projectId: "projectId 1",
+      accountId: "accountId 1",
+      type: "direct",
+      name: "name 1",
+      savedName: "savedName 1",
+      profileName: "profileName 1",
+      username: "username 1",
+      lastMessage: {
+        object: "message",
+        id: "id 1",
+        projectId: "projectId 1",
+        accountId: "accountId 1",
+        chatId: "chatId 1",
+        chatType: "direct",
+        direction: "inbound",
+        source: "api",
+        from: "from 1",
+        to: "to 1",
+        profileName: "profileName 1",
+        username: "username 1",
+        type: "text",
+        text: "text 1",
+        media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+        location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
+        contact: { name: "name 1", phone: "phone 1" },
+        contacts: [{ name: "name 1", phone: "phone 1" }],
+        poll: {
+          name: "name 1",
+          options: [{ name: "name 1", voteCount: 1 }],
+          selectableCount: 1,
+          voterCount: 1,
+        },
+        calendarEvent: {
+          name: "name 1",
+          description: "description 1",
+          startsAt: "2026-09-24T09:00:00.000Z",
+          endsAt: "2026-09-24T09:00:00.000Z",
+          location: { name: "name 1", address: "address 1", latitude: 1.5, longitude: 1.5 },
+          callType: "audio",
+          joinUrl: "joinUrl 1",
+          allowExtraGuests: true,
+          cancelled: true,
+        },
+        mentions: ["mentions 1"],
+        forwarded: true,
+        viewOnce: true,
+        starred: true,
+        replyToMessageId: "replyToMessageId 1",
+        status: "queued",
+        error: { code: "not_on_whatsapp", message: "message 1" },
+        metadata: { key: "value 1" },
+        sentAt: "2026-09-24T09:00:00.000Z",
+        editedAt: "2026-09-24T09:00:00.000Z",
+        deletedAt: "2026-09-24T09:00:00.000Z",
+        createdAt: "2026-09-24T09:00:00.000Z",
+        updatedAt: "2026-09-24T09:00:00.000Z",
+      },
+      lastMessageAt: "2026-09-24T09:00:00.000Z",
+      unread: true,
+      unreadCount: 0,
+      pinned: true,
+      archived: true,
+      muted: true,
+      muteExpiresAt: "2026-09-24T09:00:00.000Z",
+    };
+    const params: ChatsListParams = { archived: true, unread: true, type: "direct", q: "q 1", limit: 50, cursor: "cursor 1" };
+    const { fetch, calls } = mockFetch([
+      { status: 200, body: { object: "list", items: [item], nextCursor: "cursor_2" } },
+      { status: 200, body: { object: "list", items: [item], nextCursor: null } },
+    ]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const items = await client.chats.list("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", params).toArray();
+    expect(items).toEqual([item, item]);
+    expect(calls.map((c) => c.method)).toEqual(["GET", "GET"]);
+    expect(calls.map((c) => c.url)).toEqual([
+      "https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/chats?archived=true&unread=true&type=direct&q=q+1&limit=50&cursor=cursor+1",
+      "https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/chats?archived=true&unread=true&type=direct&q=q+1&limit=50&cursor=cursor_2",
+    ]);
+  });
+
+  it("list: fetches one page without params", async () => {
+    const item = {
+      object: "chat",
+      id: "id 1",
+      projectId: "projectId 1",
+      accountId: "accountId 1",
+      type: "direct",
+      name: "name 1",
+      savedName: "savedName 1",
+      profileName: "profileName 1",
+      username: "username 1",
+      lastMessage: {
+        object: "message",
+        id: "id 1",
+        projectId: "projectId 1",
+        accountId: "accountId 1",
+        chatId: "chatId 1",
+        chatType: "direct",
+        direction: "inbound",
+        source: "api",
+        from: "from 1",
+        to: "to 1",
+        profileName: "profileName 1",
+        username: "username 1",
+        type: "text",
+        text: "text 1",
+        media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+        location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
+        contact: { name: "name 1", phone: "phone 1" },
+        contacts: [{ name: "name 1", phone: "phone 1" }],
+        poll: {
+          name: "name 1",
+          options: [{ name: "name 1", voteCount: 1 }],
+          selectableCount: 1,
+          voterCount: 1,
+        },
+        calendarEvent: {
+          name: "name 1",
+          description: "description 1",
+          startsAt: "2026-09-24T09:00:00.000Z",
+          endsAt: "2026-09-24T09:00:00.000Z",
+          location: { name: "name 1", address: "address 1", latitude: 1.5, longitude: 1.5 },
+          callType: "audio",
+          joinUrl: "joinUrl 1",
+          allowExtraGuests: true,
+          cancelled: true,
+        },
+        mentions: ["mentions 1"],
+        forwarded: true,
+        viewOnce: true,
+        starred: true,
+        replyToMessageId: "replyToMessageId 1",
+        status: "queued",
+        error: { code: "not_on_whatsapp", message: "message 1" },
+        metadata: { key: "value 1" },
+        sentAt: "2026-09-24T09:00:00.000Z",
+        editedAt: "2026-09-24T09:00:00.000Z",
+        deletedAt: "2026-09-24T09:00:00.000Z",
+        createdAt: "2026-09-24T09:00:00.000Z",
+        updatedAt: "2026-09-24T09:00:00.000Z",
+      },
+      lastMessageAt: "2026-09-24T09:00:00.000Z",
+      unread: true,
+      unreadCount: 0,
+      pinned: true,
+      archived: true,
+      muted: true,
+      muteExpiresAt: "2026-09-24T09:00:00.000Z",
+    };
+    const page = { object: "list", items: [item], nextCursor: null };
+    const { fetch, calls } = mockFetch([{ status: 200, body: page }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    expect(await client.chats.list("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr").page()).toEqual(page);
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/chats");
+  });
+
+  it("get: GET /v1/accounts/{accountId}/chats/{chatId}", async () => {
+    const response = {
+      object: "chat",
+      id: "id 1",
+      projectId: "projectId 1",
+      accountId: "accountId 1",
+      type: "direct",
+      name: "name 1",
+      savedName: "savedName 1",
+      profileName: "profileName 1",
+      username: "username 1",
+      lastMessage: {
+        object: "message",
+        id: "id 1",
+        projectId: "projectId 1",
+        accountId: "accountId 1",
+        chatId: "chatId 1",
+        chatType: "direct",
+        direction: "inbound",
+        source: "api",
+        from: "from 1",
+        to: "to 1",
+        profileName: "profileName 1",
+        username: "username 1",
+        type: "text",
+        text: "text 1",
+        media: { url: "url 1", mimeType: "mimeType 1", filename: "filename 1" },
+        location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
+        contact: { name: "name 1", phone: "phone 1" },
+        contacts: [{ name: "name 1", phone: "phone 1" }],
+        poll: {
+          name: "name 1",
+          options: [{ name: "name 1", voteCount: 1 }],
+          selectableCount: 1,
+          voterCount: 1,
+        },
+        calendarEvent: {
+          name: "name 1",
+          description: "description 1",
+          startsAt: "2026-09-24T09:00:00.000Z",
+          endsAt: "2026-09-24T09:00:00.000Z",
+          location: { name: "name 1", address: "address 1", latitude: 1.5, longitude: 1.5 },
+          callType: "audio",
+          joinUrl: "joinUrl 1",
+          allowExtraGuests: true,
+          cancelled: true,
+        },
+        mentions: ["mentions 1"],
+        forwarded: true,
+        viewOnce: true,
+        starred: true,
+        replyToMessageId: "replyToMessageId 1",
+        status: "queued",
+        error: { code: "not_on_whatsapp", message: "message 1" },
+        metadata: { key: "value 1" },
+        sentAt: "2026-09-24T09:00:00.000Z",
+        editedAt: "2026-09-24T09:00:00.000Z",
+        deletedAt: "2026-09-24T09:00:00.000Z",
+        createdAt: "2026-09-24T09:00:00.000Z",
+        updatedAt: "2026-09-24T09:00:00.000Z",
+      },
+      lastMessageAt: "2026-09-24T09:00:00.000Z",
+      unread: true,
+      unreadCount: 0,
+      pinned: true,
+      archived: true,
+      muted: true,
+      muteExpiresAt: "2026-09-24T09:00:00.000Z",
+    };
+    const { fetch, calls } = mockFetch([{ status: 200, body: response }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.chats.get("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", "+584241112233");
+    expect(result).toEqual(response);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("GET");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/chats/%2B584241112233");
+    expect(calls[0]!.body).toBeUndefined();
+    expect(calls[0]!.headers["Idempotency-Key"]).toBeUndefined();
+  });
+
   it("sendPresence: POST /v1/accounts/{accountId}/chats/{chatId}/presence", async () => {
     const { fetch, calls } = mockFetch([{ status: 204 }]);
     const params: ChatsSendPresenceParams = { state: "typing" };

@@ -381,7 +381,9 @@ export type MessageStatus = "queued" | "sent" | "delivered" | "read" | "failed" 
 export type ChatType = "direct" | "group" | "channel" | "story";
 
 export interface MessageMedia {
-  /** Inbound: a URL to download it. Outbound: the URL you sent. */
+  /**
+   * Inbound: a URL to download the file. The URL does not expire and needs no API key, so anyone who has it can download the file: treat it as a secret. It stops working when the message is deleted. `null` for messages imported by history sync. Outbound: the URL you sent.
+   */
   url: string | null;
   mimeType: string | null;
   filename: string | null;
@@ -1027,6 +1029,66 @@ export interface ReadReceiptsRequest {
    * wuapi ids of inbound messages in this chat. Default: every unread inbound message wuapi stores for the chat. At most 500.
    */
   messageIds?: string[];
+}
+
+/**
+ * A chat of an account: a conversation with a contact, a group or a channel that wuapi holds at least one message of. Its name and latest message come from what wuapi stored; `unread`, `unreadCount`, `pinned`, `archived` and `muted` are WhatsApp's state of the chat, the one the chat actions change and `chat.updated` reports. wuapi learns that state from live changes (made through the API, on the phone or on another device), not from the sync after linking, so a state it has never observed is `null`, not `false`. The account's stories are not a chat.
+ */
+export interface Chat {
+  /** Always `chat`. */
+  object: "chat";
+  /**
+   * The chat id, as `chatId` on its messages: the contact id of a direct chat (`+584241112233` or `lid:<digits>`), the group id or the channel id.
+   */
+  id: string;
+  /** The project of the chat's account. `null` when it is in none. */
+  projectId: string | null;
+  /** The account this belongs to. */
+  accountId: string;
+  type: ChatType;
+  /**
+   * The name to show: `savedName` when there is one, else the group's name or the contact's `profileName`. `null` when none is known yet.
+   */
+  name: string | null;
+  /**
+   * Direct chats: the name the account saved the contact under in its phone's address book, else the contact's business name. `null` when it has neither, and for groups and channels.
+   */
+  savedName: string | null;
+  /**
+   * Direct chats: the contact's WhatsApp profile name, as it came with their messages. `null` when unknown, and for groups and channels.
+   */
+  profileName: string | null;
+  /** Direct chats: the contact's WhatsApp username (lowercase, without `@`), when WhatsApp shared one. */
+  username: string | null;
+  /** The chat's latest message. `null` when it is no longer stored. */
+  lastMessage: Message | null;
+  /** When the latest message was sent or received. Lists are ordered by it, newest first. */
+  lastMessageAt: string;
+  /** The chat has unread messages or was marked as unread on WhatsApp. `null` when unknown. */
+  unread: boolean | null;
+  /**
+   * Messages received and not read on WhatsApp yet: counted from the messages wuapi stored, and back to 0 when the account replies, sends read receipts, marks the chat as read or reads it on the phone. `0` with `unread: true` is a chat marked as unread. `null` when unknown: a chat that existed before wuapi kept this count or that only holds imported history, until it is read for the first time.
+   */
+  unreadCount: number | null;
+  /** Pinned on WhatsApp. `null` when never observed. */
+  pinned: boolean | null;
+  /** Archived on WhatsApp. `null` when never observed. */
+  archived: boolean | null;
+  /** Muted on WhatsApp right now (a timed mute that ran out is `false`). `null` when never observed. */
+  muted: boolean | null;
+  /**
+   * When the mute ends. `null` when the chat is not muted, is muted with no end, or its mute was never observed.
+   */
+  muteExpiresAt: string | null;
+}
+
+/** A page of `Chat` objects. */
+export interface ChatList {
+  /** Always `list`. */
+  object: "list";
+  items: Chat[];
+  /** Pass as `cursor` to get the next page. `null` on the last page. */
+  nextCursor: string | null;
 }
 
 /** Read receipts sent. */
@@ -2744,6 +2806,8 @@ export type ApiEvent =
   | InvitationStatusChangedEvent
   | WebhookTestEvent;
 
+export type ListChatsType = "direct" | "group" | "channel";
+
 /** Params for `accounts.list`. */
 export interface AccountsListParams {
   /**
@@ -2846,6 +2910,40 @@ export type MessagesAddLabelParams = LabelAssignRequest;
 
 /** Params for `stories.create`. */
 export type StoriesCreateParams = StoryCreateRequest;
+
+/** Params for `chats.list`. */
+export interface ChatsListParams {
+  /**
+   * `true`: only the chats WhatsApp reported as archived. `false`: every other chat, including those whose `archived` is `null`.
+   */
+  archived?: boolean;
+  /**
+   * `true`: only the chats with unread messages or marked as unread. `false`: every other chat, including those whose `unread` is `null`.
+   */
+  unread?: boolean;
+  /**
+   * Only chats of this type.
+   *
+   * - `direct`: Chats with one contact.
+   * - `group`: Groups.
+   * - `channel`: Channels.
+   */
+  type?: ListChatsType;
+  /**
+   * Search: the contact's saved name, profile name, username or number, the group's name, or words of the chat's recent messages. The last word matches as a prefix. Results come best match first, not by date.
+   */
+  q?: string;
+  /**
+   * Page size, 1 to 100.
+   *
+   * @defaultValue `50`
+   */
+  limit?: number;
+  /**
+   * Opaque cursor from a previous page's `nextCursor`. An invalid or expired cursor answers `400 invalid_request`.
+   */
+  cursor?: string;
+}
 
 /** Params for `chats.sendPresence`. */
 export type ChatsSendPresenceParams = ChatPresenceRequest;

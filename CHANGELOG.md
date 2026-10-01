@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0
+
+### Added
+
+- `chats.list(accountId, { archived?, unread?, type?, q?, limit?, cursor? })`: an account's
+  chats, newest message first, as a paginator of `Chat`. `chats.get(accountId, chatId)`
+  returns one.
+- Types `Chat`, `ChatList`, `ChatsListParams` and `ListChatsType`. A `Chat` carries its name
+  (`name`, `savedName`, `profileName`, `username`), its `lastMessage`, and WhatsApp's state
+  of it: `unread`, `unreadCount`, `pinned`, `archived`, `muted`, `muteExpiresAt`. A state
+  wuapi has not observed is `null`, not `false`.
+
 ## 0.5.0
 
 The SDK is now generated from the OpenAPI spec (`https://wuapi.dev/openapi.json`)
