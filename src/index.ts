@@ -13,6 +13,7 @@ export type { AccountsResource } from "./resources/accounts.js";
 export type { ProxyLocationsResource } from "./resources/proxy-locations.js";
 export type { MessagesResource } from "./resources/messages.js";
 export type { StoriesResource } from "./resources/stories.js";
+export type { UploadsResource } from "./resources/uploads.js";
 export type { ChatsResource } from "./resources/chats.js";
 export type { LabelsResource } from "./resources/labels.js";
 export type { ContactsResource } from "./resources/contacts.js";

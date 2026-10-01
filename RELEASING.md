@@ -34,7 +34,8 @@ To change the SDK:
 
 Only `src/custom/` and `test/custom/` are hand-written, for what the spec
 cannot describe: the account wait helpers (`AccountsBase`, which the generated
-`AccountsResource` extends), `WEBHOOK_EVENT_TYPES` in the backend's order, and
+`AccountsResource` extends), the file upload helper (`UploadsBase` and its
+`uploads.upload()`), `WEBHOOK_EVENT_TYPES` in the backend's order, and
 the names 0.4.0 exported (`compat.ts`). The generator never writes or removes
 anything there. `test/custom/` also keeps the 0.4.0 test suite unchanged, so a
 generator or spec change that would break a 0.4.0 call fails the tests.

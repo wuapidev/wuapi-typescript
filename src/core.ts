@@ -193,6 +193,25 @@ export class HttpClient {
     }
   }
 
+  /**
+   * One request to a URL outside the API (an upload URL), with this client's
+   * `fetch`. No API key, project header or retries: the caller owns those.
+   * `timeoutMs` bounds the whole request.
+   */
+  async fetchExternal(url: string, init: RequestInit, opts: { timeoutMs?: number; signal?: AbortSignal | undefined } = {}): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? this.timeoutMs);
+    const onAbort = () => controller.abort();
+    opts.signal?.addEventListener("abort", onAbort, { once: true });
+    try {
+      if (opts.signal?.aborted) throw opts.signal.reason;
+      return await this.#fetch(url, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+      opts.signal?.removeEventListener("abort", onAbort);
+    }
+  }
+
   #backoff(attempt: number): number {
     const base = Math.min(500 * 2 ** attempt, MAX_BACKOFF_MS);
     return base / 2 + Math.random() * (base / 2);

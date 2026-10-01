@@ -6,6 +6,7 @@ import { AccountsResource } from "./resources/accounts.js";
 import { ProxyLocationsResource } from "./resources/proxy-locations.js";
 import { MessagesResource } from "./resources/messages.js";
 import { StoriesResource } from "./resources/stories.js";
+import { UploadsResource } from "./resources/uploads.js";
 import { ChatsResource } from "./resources/chats.js";
 import { LabelsResource } from "./resources/labels.js";
 import { ContactsResource } from "./resources/contacts.js";
@@ -37,6 +38,10 @@ export class Wuapi extends Resource {
   readonly messages: MessagesResource;
   /** WhatsApp Status posts. A story is stored as a message whose `chatId` is `stories`. */
   readonly stories: StoriesResource;
+  /**
+   * Send a file you have, not a URL: a local file, a pasted image, a recorded voice note. Create an upload, get its bytes to wuapi, then send it with `media: { uploadId }` on `POST /v1/messages` or a story.
+   */
+  readonly uploads: UploadsResource;
   readonly chats: ChatsResource;
   readonly labels: LabelsResource;
   readonly contacts: ContactsResource;
@@ -81,6 +86,7 @@ export class Wuapi extends Resource {
     this.proxyLocations = new ProxyLocationsResource(http);
     this.messages = new MessagesResource(http);
     this.stories = new StoriesResource(http);
+    this.uploads = new UploadsResource(http);
     this.chats = new ChatsResource(http);
     this.labels = new LabelsResource(http);
     this.contacts = new ContactsResource(http);

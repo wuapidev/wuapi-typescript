@@ -337,6 +337,49 @@ describe("timeouts and aborts", () => {
   });
 });
 
+describe("requests outside the API", () => {
+  const hanging = (init: RequestInit) =>
+    new Promise<Response>((_, reject) => {
+      init.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+    });
+
+  it("uses the client's fetch without the API key or retries", async () => {
+    const seen: { url: string; init: RequestInit }[] = [];
+    const fetch: FetchLike = async (url, init) => {
+      seen.push({ url, init });
+      return new Response("{}", { status: 503 });
+    };
+    const res = await http(fetch).fetchExternal("https://files.example.com/upload", { method: "POST", headers: { "Content-Type": "image/png" }, body: "bytes" });
+    expect(res.status).toBe(503);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.url).toBe("https://files.example.com/upload");
+    expect(seen[0]!.init.headers).toEqual({ "Content-Type": "image/png" });
+    expect(seen[0]!.init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("stops at its own timeout, and on the caller's signal", async () => {
+    vi.useFakeTimers();
+    const client = http((_url, init) => hanging(init), { timeoutMs: 50 });
+    const byDefault = expect(client.fetchExternal("https://files.example.com/a", {})).rejects.toThrow("aborted");
+    const longer = client.fetchExternal("https://files.example.com/a", {}, { timeoutMs: 500 });
+    const stillWaiting = vi.fn();
+    void longer.catch(stillWaiting);
+    await vi.advanceTimersByTimeAsync(60);
+    await byDefault;
+    expect(stillWaiting).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(stillWaiting).toHaveBeenCalled();
+
+    const controller = new AbortController();
+    const cancelled = expect(client.fetchExternal("https://files.example.com/a", {}, { signal: controller.signal })).rejects.toThrow("aborted");
+    controller.abort();
+    await cancelled;
+    const { fetch, calls } = mockFetch([]);
+    await expect(http(fetch).fetchExternal("https://files.example.com/a", {}, { signal: AbortSignal.abort("stop") })).rejects.toBe("stop");
+    expect(calls).toHaveLength(0);
+  });
+});
+
 describe("pagination", () => {
   const page = (items: number[], nextCursor: string | null): Page<number> => ({ object: "list", items, nextCursor });
 

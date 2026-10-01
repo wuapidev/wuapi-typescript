@@ -426,13 +426,13 @@ export type ChatType = "direct" | "group" | "channel" | "story";
  */
 export interface MessageMedia {
   /**
-   * `downloaded: true`: the file itself. Received: stored by wuapi; the URL does not expire and needs no API key, so anyone who has it can download the file: treat it as a secret. It stops working when the message is deleted. Sent: the URL you gave. `downloaded: false`: `GET /v1/messages/{messageId}/media` on api.wuapi.dev, which needs the API key (`Authorization: Bearer`) and answers a redirect to the file. A file sent from the phone itself (`source: phone`) is handled like a received one. `null` when wuapi has nothing to fetch the file with. Messages imported by history sync (`source: history`) have no `media` at all: the import carries what a message was, not its file.
+   * `downloaded: true`: the file itself. Received: stored by wuapi; the URL does not expire and needs no API key, so anyone who has it can download the file: treat it as a secret. It stops working when the message is deleted. Sent: the URL you gave, or, for a file sent with `media.uploadId`, the stored file (the same kind of URL as a received file's, working until the message is deleted). `downloaded: false`: `GET /v1/messages/{messageId}/media` on api.wuapi.dev, which needs the API key (`Authorization: Bearer`) and answers a redirect to the file. A file sent from the phone itself (`source: phone`) is handled like a received one. `null` when wuapi has nothing to fetch the file with. Messages imported by history sync (`source: history`) have no `media` at all: the import carries what a message was, not its file.
    */
   url: string | null;
   mimeType: string | null;
   filename: string | null;
   /**
-   * Bytes, when known: what WhatsApp declared for a received file, the stored file's size, or what was uploaded for a message sent through the API.
+   * Bytes, when known: what WhatsApp declared for a received file, the stored file's size, or what was uploaded for a message sent through the API (known at once for a file sent with `media.uploadId`, once `sent` for a URL).
    */
   size: number | null;
   /**
@@ -611,8 +611,13 @@ export interface MessageList {
 /** A disappearing-messages timer: 0 (off), 24 hours, 7 days or 90 days. */
 export type DisappearingSeconds = 0 | 86400 | 604800 | 7776000;
 
-/** A file to send, fetched by our servers. */
-export interface SendMedia {
+/**
+ * A file to send: exactly one of `url` (a public URL our servers download) or `uploadId` (a file uploaded with `POST /v1/uploads`).
+ */
+export type SendMedia = SendMediaUrl | SendMediaUpload;
+
+/** A file to send, fetched by our servers from a URL. */
+export interface SendMediaUrl {
   /**
    * Public `http(s)` URL our servers download (up to 5 redirects, 60 seconds, 100 MB), as `wuapi-media-fetcher/1.0 (+https://wuapi.dev)`. Private and internal addresses are refused; hosts with hotlink protection may refuse the download, which fails the message with a message naming the host and its answer (`fetch media from upload.wikimedia.org: HTTP 403`).
    */
@@ -622,8 +627,25 @@ export interface SendMedia {
   filename?: string;
 }
 
-/** An image to send, fetched by our servers. */
-export interface SendImageMedia {
+/** A file to send, uploaded before with `POST /v1/uploads`. */
+export interface SendMediaUpload {
+  /**
+   * The id of a `ready` upload (`POST /v1/uploads`). Nothing is downloaded from outside: the file is already stored. The upload can be sent again until it expires.
+   */
+  uploadId: string;
+  /** Defaults to the upload's `mimeType`. Voice notes: upload ogg/opus, nothing is transcoded. */
+  mimeType?: string;
+  /** Defaults to the upload's `filename`. */
+  filename?: string;
+}
+
+/**
+ * An image to send: exactly one of `url` (a public URL our servers download) or `uploadId` (a file uploaded with `POST /v1/uploads`).
+ */
+export type SendImageMedia = SendImageMediaUrl | SendImageMediaUpload;
+
+/** An image to send, fetched by our servers from a URL. */
+export interface SendImageMediaUrl {
   /**
    * Public `http(s)` URL our servers download (up to 5 redirects, 60 seconds, 100 MB), as `wuapi-media-fetcher/1.0 (+https://wuapi.dev)`. Private and internal addresses are refused; hosts with hotlink protection may refuse the download, which fails the message with a message naming the host and its answer (`fetch media from upload.wikimedia.org: HTTP 403`).
    */
@@ -637,14 +659,49 @@ export interface SendImageMedia {
   quality?: ImageQualitySetting;
 }
 
-/** A video to send, fetched by our servers. */
-export interface SendVideoMedia {
+/** An image to send, uploaded before with `POST /v1/uploads`. */
+export interface SendImageMediaUpload {
+  /**
+   * The id of a `ready` upload (`POST /v1/uploads`). Nothing is downloaded from outside: the file is already stored. The upload can be sent again until it expires.
+   */
+  uploadId: string;
+  /** Defaults to the upload's `mimeType`. Voice notes: upload ogg/opus, nothing is transcoded. */
+  mimeType?: string;
+  /** Defaults to the upload's `filename`. */
+  filename?: string;
+  /**
+   * The quality of this image, instead of the account's `imageQuality`. `hd` is WhatsApp's HD photo; `original` sends the file without re-encoding it.
+   */
+  quality?: ImageQualitySetting;
+}
+
+/**
+ * A video to send: exactly one of `url` (a public URL our servers download) or `uploadId` (a file uploaded with `POST /v1/uploads`).
+ */
+export type SendVideoMedia = SendVideoMediaUrl | SendVideoMediaUpload;
+
+/** A video to send, fetched by our servers from a URL. */
+export interface SendVideoMediaUrl {
   /**
    * Public `http(s)` URL our servers download (up to 5 redirects, 60 seconds, 100 MB), as `wuapi-media-fetcher/1.0 (+https://wuapi.dev)`. Private and internal addresses are refused; hosts with hotlink protection may refuse the download, which fails the message with a message naming the host and its answer (`fetch media from upload.wikimedia.org: HTTP 403`).
    */
   url: string;
   /** Guessed from the URL extension when omitted. Voice notes: send ogg/opus, nothing is transcoded. */
   mimeType?: string;
+  filename?: string;
+  /** Play it as a GIF. */
+  gifPlayback?: boolean;
+}
+
+/** A video to send, uploaded before with `POST /v1/uploads`. */
+export interface SendVideoMediaUpload {
+  /**
+   * The id of a `ready` upload (`POST /v1/uploads`). Nothing is downloaded from outside: the file is already stored. The upload can be sent again until it expires.
+   */
+  uploadId: string;
+  /** Defaults to the upload's `mimeType`. Voice notes: upload ogg/opus, nothing is transcoded. */
+  mimeType?: string;
+  /** Defaults to the upload's `filename`. */
   filename?: string;
   /** Play it as a GIF. */
   gifPlayback?: boolean;
@@ -1063,12 +1120,29 @@ export interface LabelAssignRequest {
   labelId: string;
 }
 
-/** An image or video for a story, fetched by our servers. */
-export interface StoryMedia {
+/**
+ * An image or video for a story: exactly one of `url` (a public URL our servers download) or `uploadId` (a file uploaded with `POST /v1/uploads`).
+ */
+export type StoryMedia = StoryMediaUrl | StoryMediaUpload;
+
+/** An image or video for a story, fetched by our servers from a URL. */
+export interface StoryMediaUrl {
   /**
    * Public `http(s)` URL our servers download (up to 5 redirects, 60 seconds, 100 MB), as `wuapi-media-fetcher/1.0 (+https://wuapi.dev)`. Private and internal addresses are refused; hosts with hotlink protection may refuse the download, which fails the message with a message naming the host and its answer (`fetch media from upload.wikimedia.org: HTTP 403`).
    */
   url: string;
+  mimeType?: string;
+  /** Images only: the quality of this image, instead of the account's `imageQuality`. */
+  quality?: ImageQualitySetting;
+}
+
+/** An image or video for a story, uploaded before with `POST /v1/uploads`. */
+export interface StoryMediaUpload {
+  /**
+   * The id of a `ready` upload (`POST /v1/uploads`). Nothing is downloaded from outside: the file is already stored. The upload can be sent again until it expires.
+   */
+  uploadId: string;
+  /** Defaults to the upload's `mimeType`. Voice notes: upload ogg/opus, nothing is transcoded. */
   mimeType?: string;
   /** Images only: the quality of this image, instead of the account's `imageQuality`. */
   quality?: ImageQualitySetting;
@@ -2923,6 +2997,78 @@ export type ApiEvent =
   | InvitationStatusChangedEvent
   | WebhookTestEvent;
 
+/**
+ * - `pending`: Waiting for the bytes at `uploadUrl` and for `POST /v1/uploads/{uploadId}/complete`. Not sendable yet.
+ * - `ready`: The file is stored. Send it with `media: { uploadId }` until `expiresAt`.
+ */
+export type UploadStatus = "pending" | "ready";
+
+/** A file uploaded to be sent with `media: { uploadId }`. */
+export interface Upload {
+  /** Always `upload`. */
+  object: "upload";
+  /** Pass it as `media.uploadId` when sending. */
+  id: string;
+  /**
+   * Project the resource belongs to, `null` when it is in no project. Set at creation and never changes.
+   */
+  projectId: string | null;
+  status: UploadStatus;
+  /** The file's MIME type, as declared. A send uses it unless it passes its own `media.mimeType`. */
+  mimeType: string;
+  /** The file name a recipient sees for a document, when one was given. */
+  filename: string | null;
+  /** Bytes: the declared size while `pending`, the stored file's size once `ready`. */
+  size: number;
+  /**
+   * Where to `POST` the file's raw bytes, with the file's `Content-Type` and no API key. Valid for 1 hour. It answers `{ "storageId": "..." }`: pass that to `POST /v1/uploads/{uploadId}/complete`. Only on the answer of the `POST /v1/uploads` that issued it; `null` everywhere else, and for an upload created with `base64`. Treat it as a secret until then.
+   */
+  uploadUrl: string | null;
+  /**
+   * `pending`: when the upload URL stops working (1 hour after creation). `ready`: until when the upload can be sent (24 hours after it became ready). After it the upload answers `404`.
+   */
+  expiresAt: string;
+  createdAt: string;
+}
+
+/**
+ * Exactly one of: `size` (the bytes go to the `uploadUrl` of the answer; any size up to 100 MB), or `base64` (the bytes are in this request; up to 5 MB).
+ */
+export type UploadCreateRequest = FileUploadCreateRequest | InlineUploadCreateRequest;
+
+/** An upload whose bytes you post to `uploadUrl`. Any size up to 100 MB. */
+export interface FileUploadCreateRequest {
+  /**
+   * The file's MIME type, such as `image/jpeg` or `audio/ogg; codecs=opus`. Sends use it as the message's `mimeType`.
+   */
+  mimeType: string;
+  /**
+   * The file's size in bytes, at most 104857600 (100 MB). The file posted to `uploadUrl` must be exactly this size.
+   */
+  size: number;
+  /** The file name a recipient sees for a document. */
+  filename?: string;
+}
+
+/** An upload with its bytes in the request. Up to 5 MB; the answer is already `ready`. */
+export interface InlineUploadCreateRequest {
+  /**
+   * The file's MIME type, such as `image/jpeg` or `audio/ogg; codecs=opus`. Sends use it as the message's `mimeType`.
+   */
+  mimeType: string;
+  /**
+   * The file's bytes in base64 (standard or URL-safe alphabet), at most 5 MB (5242880 bytes) once decoded.
+   */
+  base64: string;
+  /** The file name a recipient sees for a document. */
+  filename?: string;
+}
+
+export interface UploadCompleteRequest {
+  /** The `storageId` in the JSON answer of the `POST` of the bytes to `uploadUrl`. */
+  storageId: string;
+}
+
 export type ListChatsType = "direct" | "group" | "channel";
 
 /** Params for `accounts.list`. */
@@ -3037,6 +3183,12 @@ export type MessagesAddLabelParams = LabelAssignRequest;
 
 /** Params for `stories.create`. */
 export type StoriesCreateParams = StoryCreateRequest;
+
+/** Params for `uploads.create`. */
+export type UploadsCreateParams = UploadCreateRequest;
+
+/** Params for `uploads.complete`. */
+export type UploadsCompleteParams = UploadCompleteRequest;
 
 /** Params for `chats.list`. */
 export interface ChatsListParams {

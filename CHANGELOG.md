@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.10.0
+
+### Added
+
+- `uploads.upload(file, { mimeType?, filename? })`: upload a file you have (a `Blob`, `File`,
+  `Buffer`, `Uint8Array`, `ArrayBuffer` or stream) and get back a `ready` `Upload`. Send it
+  with `messages.send({ ..., media: { uploadId: upload.id } })` or `stories.create`. Small
+  files go in one request; larger ones, up to 100 MB, are posted straight to storage and a
+  dropped connection is retried.
+- `uploads.create`, `uploads.get` and `uploads.complete`: the same steps one by one.
+- `media: { uploadId }` on every media send and on image and video stories, next to
+  `media: { url }`. A `ready` upload can be sent any number of times for 24 hours.
+- Types `Upload`, `UploadStatus`, `UploadCreateRequest` (`FileUploadCreateRequest` or
+  `InlineUploadCreateRequest`), `UploadCompleteRequest`, `UploadFile`, `UploadFileParams`,
+  `SendMediaUrl`, `SendMediaUpload`, `SendImageMediaUrl`, `SendImageMediaUpload`,
+  `SendVideoMediaUrl`, `SendVideoMediaUpload`, `StoryMediaUrl` and `StoryMediaUpload`.
+
+### Changed
+
+- `SendMedia`, `SendImageMedia`, `SendVideoMedia` and `StoryMedia` are now unions of their
+  `...Url` and `...Upload` shapes. `media: { url }` keeps working as before; code that named
+  the type and read `.url` from it needs to narrow first (`"url" in media`).
+
 ## 0.9.0
 
 ### Added

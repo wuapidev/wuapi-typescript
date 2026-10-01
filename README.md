@@ -169,6 +169,25 @@ await wuapi.messages.send({ accountId, to: "120363041234567890@g.us", text: "Hel
 await wuapi.messages.send({ accountId, to: "120363198765432101@newsletter", text: "Version 2.4 is out." });
 ```
 
+### Sending a file you have
+
+`media.url` needs the file at a public URL. A local file, a pasted image or a recorded voice note is uploaded first and sent by its id:
+
+```ts
+import { readFile } from "node:fs/promises";
+
+const upload = await wuapi.uploads.upload(await readFile("photo.jpg"), { mimeType: "image/jpeg" });
+await wuapi.messages.send({ accountId, to: "+584241112233", type: "image", media: { uploadId: upload.id }, text: "From my camera roll" });
+
+// In a browser, a File or Blob carries its own type and name.
+const note = await wuapi.uploads.upload(recordedBlob); // audio/ogg; codecs=opus
+await wuapi.messages.send({ accountId, to: "+584241112233", type: "voice", media: { uploadId: note.id } });
+```
+
+`uploads.upload(file, { mimeType?, filename? })` takes a `Blob`, `File`, `Buffer`, `Uint8Array`, `ArrayBuffer` or a stream (read into memory first) and returns the `ready` upload. A file up to 1 MiB goes in one request; a larger one, up to 100 MB, is posted straight to storage through an upload URL and then completed, and a connection that drops while posting is retried. Pass `{ idempotencyKey }` to name the whole upload, so calling again with the same key and file answers the same upload.
+
+A `ready` upload can be sent any number of times for 24 hours (`upload.expiresAt`), to any account the key reaches; a message sent with it keeps the file after that. The steps are also there one by one: `uploads.create`, `uploads.complete` and `uploads.get`.
+
 Send types: `text`, `image`, `video`, `audio`, `voice` (an audio sent as a voice note), `document`, `sticker`, `location`, `contact`, `contacts`, `poll` and `calendar_event`. Any send also takes `mentions`, `mentionAll` (groups), `forwarded`, `viewOnce`, `disappearingSeconds`, `linkPreview` (text) and `media.gifPlayback`. A channel takes `text`, `image`, `video` and `document`.
 
 Everything else works on the account: chats, contacts, the profile, privacy, stories, groups and communities, channels, labels and calls. Each method takes the `accountId` first, and the account must be `ready`. Opposites are two methods: `archive` / `unarchive`, `pin` / `unpin`, `mute` / `unmute`, `block` / `unblock`, `follow` / `unfollow`, `star` / `unstar`.
@@ -396,6 +415,7 @@ new Wuapi({
 | `proxyLocations` | `list` |
 | `accounts` | `list`, `create`, `get`, `update`, `delete`, `reconnect`, `logout`, `createPairingCode`, `setPresence`, `setDefaultDisappearingTimer`, `waitForQrCode`, `waitForPairingCode`, `waitUntilReady` |
 | `messages` | `send`, `list`, `get`, `edit`, `delete`, `react`, `vote`, `star`, `unstar`, `addLabel`, `removeLabel` |
+| `uploads` | `upload`, `create`, `get`, `complete` |
 | `chats` | `list`, `get`, `sendPresence`, `sendReadReceipts`, `markRead`, `markUnread`, `archive`, `unarchive`, `pin`, `unpin`, `mute`, `unmute`, `delete`, `setDisappearingTimer`, `addLabel`, `removeLabel` |
 | `stories` | `create` |
 | `contacts` | `check`, `lookup`, `getPicture`, `getBusinessProfile`, `subscribePresence`, `block`, `unblock`, `listBlocked`, `getLink`, `resetLink`, `resolveLink` |

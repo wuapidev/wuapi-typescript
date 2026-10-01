@@ -11,6 +11,8 @@ export class StoriesResource extends Resource {
    *
    * Queued like any send and stored as an outbound message with `chatId: stories`. The outcome arrives as `message.sent` or `message.failed`.
    *
+   * An image or video story takes `media.url` or `media.uploadId` (a file uploaded with `POST /v1/uploads`).
+   *
    * `POST /v1/accounts/{accountId}/stories`
    */
   create(accountId: string, params: StoriesCreateParams, options?: CallOptions): Promise<Message> {
