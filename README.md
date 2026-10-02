@@ -164,6 +164,11 @@ await wuapi.messages.star(message.id);
 await wuapi.messages.react(message.id, { emoji: "\u{1F44D}" });
 await wuapi.messages.delete(message.id);
 
+// Forward a message you have (received or sent) to up to 5 chats: one queued message per chat.
+// No content and no file to move; the recipients see it as forwarded.
+const forwarded = await wuapi.messages.forward(message.id, { to: ["+584241112233", "120363041234567890@g.us"] });
+console.log(forwarded.items.map((m) => [m.to, m.status])); // each is a message like any other
+
 // Send to a group, or post to a channel you administer, by its id.
 await wuapi.messages.send({ accountId, to: "120363041234567890@g.us", text: "Hello group" });
 await wuapi.messages.send({ accountId, to: "120363198765432101@newsletter", text: "Version 2.4 is out." });
@@ -188,7 +193,7 @@ await wuapi.messages.send({ accountId, to: "+584241112233", type: "voice", media
 
 A `ready` upload can be sent any number of times for 24 hours (`upload.expiresAt`), to any account the key reaches; a message sent with it keeps the file after that. The steps are also there one by one: `uploads.create`, `uploads.complete` and `uploads.get`.
 
-Send types: `text`, `image`, `video`, `audio`, `voice` (an audio sent as a voice note), `document`, `sticker`, `location`, `contact`, `contacts`, `poll` and `calendar_event`. Any send also takes `mentions`, `mentionAll` (groups), `forwarded`, `viewOnce`, `disappearingSeconds`, `linkPreview` (text) and `media.gifPlayback`. A channel takes `text`, `image`, `video` and `document`.
+Send types: `text`, `image`, `video`, `audio`, `voice` (an audio sent as a voice note), `document`, `sticker`, `location`, `contact`, `contacts`, `poll` and `calendar_event`. Any send also takes `mentions`, `mentionAll` (groups), `forwarded` (labels a new message as forwarded; `messages.forward` passes on one you have), `viewOnce`, `disappearingSeconds`, `linkPreview` (text) and `media.gifPlayback`. A channel takes `text`, `image`, `video` and `document`.
 
 Everything else works on the account: chats, contacts, the profile, privacy, stories, groups and communities, channels, labels and calls. Each method takes the `accountId` first, and the account must be `ready`. Opposites are two methods: `archive` / `unarchive`, `pin` / `unpin`, `mute` / `unmute`, `block` / `unblock`, `follow` / `unfollow`, `star` / `unstar`.
 
@@ -203,6 +208,9 @@ for await (const contact of wuapi.contacts.list(accountId)) {       // the phone
 }
 const { items: [check] } = await wuapi.contacts.check(accountId, { phones: ["+584241112233"] });
 await wuapi.stories.create(accountId, { text: "Open until 18:00", backgroundColor: "#0F766E" });
+for await (const group of wuapi.stories.list(accountId)) {           // contacts' stories of the last 24 hours, by contact
+  for (const story of group.stories) console.log(group.contactId, story.type, story.text, story.viewedAt);
+}
 await wuapi.groups.create(accountId, { name: "Customers", community: true });
 await wuapi.accounts.update(accountId, { rejectCalls: true, rejectCallsMessage: "Please write to us." });
 ```
@@ -414,10 +422,10 @@ new Wuapi({
 |---|---|
 | `proxyLocations` | `list` |
 | `accounts` | `list`, `create`, `get`, `update`, `delete`, `reconnect`, `logout`, `createPairingCode`, `setPresence`, `setDefaultDisappearingTimer`, `waitForQrCode`, `waitForPairingCode`, `waitUntilReady` |
-| `messages` | `send`, `list`, `get`, `edit`, `delete`, `react`, `vote`, `star`, `unstar`, `addLabel`, `removeLabel` |
+| `messages` | `send`, `list`, `get`, `edit`, `delete`, `react`, `vote`, `forward`, `star`, `unstar`, `addLabel`, `removeLabel` |
 | `uploads` | `upload`, `create`, `get`, `complete` |
 | `chats` | `list`, `get`, `sendPresence`, `sendReadReceipts`, `markRead`, `markUnread`, `archive`, `unarchive`, `pin`, `unpin`, `mute`, `unmute`, `delete`, `setDisappearingTimer`, `addLabel`, `removeLabel` |
-| `stories` | `create` |
+| `stories` | `create`, `list`, `listOwn`, `get`, `getMedia`, `view`, `react`, `listViewers`, `delete` |
 | `contacts` | `check`, `lookup`, `getPicture`, `getBusinessProfile`, `subscribePresence`, `block`, `unblock`, `listBlocked`, `getLink`, `resetLink`, `resolveLink` |
 | `bots` | `list` |
 | `profile` | `update`, `setPicture`, `deletePicture` |
@@ -425,6 +433,7 @@ new Wuapi({
 | `labels` | `upsert`, `delete` |
 | `calls` | `reject` |
 | `stickerPacks`, `orders` | `get` |
+| `favoriteStickers` | `list`, `add`, `remove`, `getMedia` |
 | `groups` | `list`, `create`, `get`, `update`, `leave`, `addParticipants`, `removeParticipants`, `promoteParticipants`, `demoteParticipants`, `getInviteLink`, `resetInviteLink`, `join`, `getInvite`, `setPicture`, `deletePicture`, `listJoinRequests`, `approveJoinRequests`, `rejectJoinRequests`, `listSubgroups`, `linkSubgroup`, `unlinkSubgroup`, `listCommunityParticipants` |
 | `channels` | `list`, `create`, `get`, `getInvite`, `follow`, `unfollow`, `mute`, `unmute`, `listMessages`, `react`, `markViewed` |
 | `webhookEndpoints` | `list`, `create`, `get`, `update`, `delete`, `rotateSecret` |

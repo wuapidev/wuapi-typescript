@@ -22,6 +22,7 @@ export type { ProfileResource } from "./resources/profile.js";
 export type { PrivacyResource } from "./resources/privacy.js";
 export type { CallsResource } from "./resources/calls.js";
 export type { StickerPacksResource } from "./resources/sticker-packs.js";
+export type { FavoriteStickersResource } from "./resources/favorite-stickers.js";
 export type { OrdersResource } from "./resources/orders.js";
 export type { GroupsResource } from "./resources/groups.js";
 export type { ChannelsResource } from "./resources/channels.js";

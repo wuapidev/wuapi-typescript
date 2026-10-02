@@ -15,6 +15,7 @@ import { ProfileResource } from "./resources/profile.js";
 import { PrivacyResource } from "./resources/privacy.js";
 import { CallsResource } from "./resources/calls.js";
 import { StickerPacksResource } from "./resources/sticker-packs.js";
+import { FavoriteStickersResource } from "./resources/favorite-stickers.js";
 import { OrdersResource } from "./resources/orders.js";
 import { GroupsResource } from "./resources/groups.js";
 import { ChannelsResource } from "./resources/channels.js";
@@ -36,7 +37,7 @@ export class Wuapi extends Resource {
    */
   readonly proxyLocations: ProxyLocationsResource;
   readonly messages: MessagesResource;
-  /** WhatsApp Status posts. A story is stored as a message whose `chatId` is `stories`. */
+  /** WhatsApp Status posts. */
   readonly stories: StoriesResource;
   /**
    * Send a file you have, not a URL: a local file, a pasted image, a recorded voice note. Create an upload, get its bytes to wuapi, then send it with `media: { uploadId }` on `POST /v1/messages` or a story.
@@ -56,6 +57,10 @@ export class Wuapi extends Resource {
   readonly calls: CallsResource;
   /** WhatsApp sticker packs, read live from WhatsApp. */
   readonly stickerPacks: StickerPacksResource;
+  /**
+   * The account's favorite stickers: the star tab of WhatsApp's sticker picker, which WhatsApp keeps in sync between the phone and its linked devices.
+   */
+  readonly favoriteStickers: FavoriteStickersResource;
   /** Catalog orders contacts send as messages, read live from WhatsApp. */
   readonly orders: OrdersResource;
   readonly groups: GroupsResource;
@@ -95,6 +100,7 @@ export class Wuapi extends Resource {
     this.privacy = new PrivacyResource(http);
     this.calls = new CallsResource(http);
     this.stickerPacks = new StickerPacksResource(http);
+    this.favoriteStickers = new FavoriteStickersResource(http);
     this.orders = new OrdersResource(http);
     this.groups = new GroupsResource(http);
     this.channels = new ChannelsResource(http);

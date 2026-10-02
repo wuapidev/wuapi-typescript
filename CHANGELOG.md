@@ -1,5 +1,68 @@
 # Changelog
 
+## 0.12.0
+
+### Added
+
+- `messages.forward(messageId, { to })`: forward a message wuapi stores (received, sent through
+  the API or sent from the phone) to up to 5 chats of the same account, the way WhatsApp
+  forwards. No content and no file to move: the forwarded message names the file WhatsApp
+  already holds. Returns a `MessageList` with one `queued` message per chat, in the order of
+  `to`; each is a message like any other (`forwarded: true`, its own events). Polls, calendar
+  events, reactions, view-once and deleted messages answer `400 not_forwardable`
+  (`details.reason`), and so does a contact's story (`reason: story`): a story the account
+  posted is a message and forwards like one. A file neither WhatsApp nor wuapi has answers
+  `410 media_expired`.
+- `Message.forwardedManyTimes`: WhatsApp's "Forwarded many times" (five or more forwards), on
+  received and sent messages. Such a message is forwarded to one chat per request.
+- Types `ForwardMessageRequest` and `MessagesForwardParams`; `media_expired` in
+  `MessageError.code` (a forward whose file was gone by the time it was sent).
+- `favoriteStickers`: the account's favorite stickers, the star tab of WhatsApp's sticker
+  picker. `favoriteStickers.list(accountId)` reads them, newest first;
+  `favoriteStickers.getMedia(accountId, stickerId)` returns a direct URL to one's file,
+  fetching it from WhatsApp the first time; `favoriteStickers.add(accountId, { messageId })`
+  or `{ uploadId }` favorites a sticker from a message or an uploaded WebP file; and
+  `favoriteStickers.remove(accountId, stickerId)` removes one. Adding and removing change
+  the list on the phone too.
+- Webhook event `sticker.favorites_updated` (`StickerFavoritesUpdatedEvent`), with
+  `data.object` a `StickerFavoritesChange`: `reason` is `added`, `removed` or `synced`.
+- Types `FavoriteSticker`, `FavoriteStickerMedia`, `FavoriteStickerMediaFile`,
+  `FavoriteStickerAddRequest` (`FavoriteStickerFromMessage` or `FavoriteStickerFromUpload`),
+  `StickerFavoritesChange` and the `FavoriteStickers*Params`.
+- `MessageMedia.gifPlayback`: `true` for a video that WhatsApp plays as a GIF, received
+  or sent. A received GIF is `type: "video"` with `media.gifPlayback: true` (it was
+  `type: "unknown"` on some accounts before).
+- Contacts' stories. `stories.list(accountId, { contactId?, unviewed? })` pages through the
+  stories the account's contacts posted in the last 24 hours, one `StoryGroup` per contact
+  (newest activity first), each with its `stories` oldest first. `stories.get` reads one,
+  `stories.getMedia` returns its file's URL (downloaded from WhatsApp on first use).
+  Contacts' stories arrive only for accounts with stories turned on.
+- `stories.view(accountId, storyId)`: tell the author the account saw their story. It is
+  the only call that does: listing, reading and downloading never mark a story as viewed.
+  The answer's `authorNotified` is `false` when WhatsApp kept the view from the author
+  (the account's read receipts are off).
+- `stories.react(accountId, storyId, { emoji })`, and replies to a story:
+  `messages.send({ accountId, to: story.contactId, text, replyToStoryId: story.id })`.
+- The account's own stories: `stories.listOwn(accountId)` (the last 24 hours, with
+  `viewCount`), `stories.listViewers(accountId, storyId)` (who saw one, with their
+  reaction) and `stories.delete(accountId, storyId)`. A posted story's id is its message id.
+- Webhook events `story.received`, `story.deleted` (`data.object` is a `Story`) and
+  `story.viewed`, `story.reacted` (a `StoryViewer`), in `WEBHOOK_EVENT_TYPES` and the
+  `WebhookEvent` union.
+- Types `Story`, `StoryFile`, `StoryGroup`, `StoryViewer`, `StoryMediaFile`, `StoryEvent`
+  and `StoryViewerEvent`. `StoryFile.gifPlayback` says when a video story plays as a GIF,
+  like `MessageMedia.gifPlayback`.
+- `Message.replyToStoryId`: the story a message replies to, `null` otherwise. Always
+  present, so a hand-built `Message` (a test fixture) needs the field.
+
+### Changed
+
+- `forwarded` on a send is documented as what it is: it labels a new message as forwarded.
+  Nothing changed in its behavior.
+- `MessageMedia.width` and `MessageMedia.height` are also set for a WebP sticker sent
+  through the API, once it is `sent`, and for a received sticker. A forwarded message keeps
+  its source's.
+
 ## 0.11.0
 
 ### Added

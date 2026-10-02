@@ -90,6 +90,7 @@ export const message = (id: string) => ({
   calendarEvent: null,
   mentions: [],
   forwarded: false,
+  forwardedManyTimes: false,
   viewOnce: false,
   starred: false,
   replyToMessageId: null,

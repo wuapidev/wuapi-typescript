@@ -2,7 +2,14 @@
 
 import { describe, expect, it } from "vitest";
 import { Wuapi } from "../../src/index.js";
-import type { StoriesCreateParams } from "../../src/index.js";
+import type {
+  StoriesCreateParams,
+  StoriesGetMediaParams,
+  StoriesListOwnParams,
+  StoriesListParams,
+  StoriesListViewersParams,
+  StoriesReactParams,
+} from "../../src/index.js";
 import { KEY, mockFetch } from "../helpers.js";
 
 describe("stories", () => {
@@ -30,6 +37,7 @@ describe("stories", () => {
         width: 1,
         height: 1,
         durationSeconds: 1,
+        gifPlayback: true,
         downloaded: true,
       },
       location: { latitude: 1.5, longitude: 1.5, name: "name 1", address: "address 1" },
@@ -54,9 +62,11 @@ describe("stories", () => {
       },
       mentions: ["mentions 1"],
       forwarded: true,
+      forwardedManyTimes: true,
       viewOnce: true,
       starred: true,
       replyToMessageId: "replyToMessageId 1",
+      replyToStoryId: "replyToStoryId 1",
       status: "queued",
       error: { code: "not_on_whatsapp", message: "message 1" },
       metadata: { key: "value 1" },
@@ -76,5 +86,415 @@ describe("stories", () => {
     expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories");
     expect(calls[0]!.body).toEqual({ type: "text", text: "text 1", backgroundColor: "backgroundColor 1", font: 0 });
     expect(calls[0]!.headers["Idempotency-Key"]).toMatch(/.+/);
+  });
+
+  it("list: GET /v1/accounts/{accountId}/stories pages through every item", async () => {
+    const item = {
+      object: "story_group",
+      accountId: "accountId 1",
+      contactId: "contactId 1",
+      profileName: "profileName 1",
+      username: "username 1",
+      muted: true,
+      storyCount: 1,
+      unviewedCount: 1,
+      lastPostedAt: "2026-09-24T09:00:00.000Z",
+      stories: [
+        {
+          object: "story",
+          id: "id 1",
+          projectId: "projectId 1",
+          accountId: "accountId 1",
+          contactId: "contactId 1",
+          own: true,
+          profileName: "profileName 1",
+          username: "username 1",
+          type: "text",
+          text: "text 1",
+          backgroundColor: "backgroundColor 1",
+          font: 1,
+          media: {
+            url: "url 1",
+            mimeType: "mimeType 1",
+            filename: "filename 1",
+            size: 1,
+            width: 1,
+            height: 1,
+            durationSeconds: 1,
+            gifPlayback: true,
+            downloaded: true,
+          },
+          status: "queued",
+          viewedAt: "2026-09-24T09:00:00.000Z",
+          authorNotified: true,
+          reaction: "reaction 1",
+          viewCount: 1,
+          postedAt: "2026-09-24T09:00:00.000Z",
+          expiresAt: "2026-09-24T09:00:00.000Z",
+          deletedAt: "2026-09-24T09:00:00.000Z",
+          createdAt: "2026-09-24T09:00:00.000Z",
+        },
+      ],
+    };
+    const params: StoriesListParams = { contactId: "contactId 1", unviewed: true, limit: 50, cursor: "cursor 1" };
+    const { fetch, calls } = mockFetch([
+      { status: 200, body: { object: "list", items: [item], nextCursor: "cursor_2" } },
+      { status: 200, body: { object: "list", items: [item], nextCursor: null } },
+    ]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const items = await client.stories.list("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", params).toArray();
+    expect(items).toEqual([item, item]);
+    expect(calls.map((c) => c.method)).toEqual(["GET", "GET"]);
+    expect(calls.map((c) => c.url)).toEqual([
+      "https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories?contactId=contactId+1&unviewed=true&limit=50&cursor=cursor+1",
+      "https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories?contactId=contactId+1&unviewed=true&limit=50&cursor=cursor_2",
+    ]);
+  });
+
+  it("list: fetches one page without params", async () => {
+    const item = {
+      object: "story_group",
+      accountId: "accountId 1",
+      contactId: "contactId 1",
+      profileName: "profileName 1",
+      username: "username 1",
+      muted: true,
+      storyCount: 1,
+      unviewedCount: 1,
+      lastPostedAt: "2026-09-24T09:00:00.000Z",
+      stories: [
+        {
+          object: "story",
+          id: "id 1",
+          projectId: "projectId 1",
+          accountId: "accountId 1",
+          contactId: "contactId 1",
+          own: true,
+          profileName: "profileName 1",
+          username: "username 1",
+          type: "text",
+          text: "text 1",
+          backgroundColor: "backgroundColor 1",
+          font: 1,
+          media: {
+            url: "url 1",
+            mimeType: "mimeType 1",
+            filename: "filename 1",
+            size: 1,
+            width: 1,
+            height: 1,
+            durationSeconds: 1,
+            gifPlayback: true,
+            downloaded: true,
+          },
+          status: "queued",
+          viewedAt: "2026-09-24T09:00:00.000Z",
+          authorNotified: true,
+          reaction: "reaction 1",
+          viewCount: 1,
+          postedAt: "2026-09-24T09:00:00.000Z",
+          expiresAt: "2026-09-24T09:00:00.000Z",
+          deletedAt: "2026-09-24T09:00:00.000Z",
+          createdAt: "2026-09-24T09:00:00.000Z",
+        },
+      ],
+    };
+    const page = { object: "list", items: [item], nextCursor: null };
+    const { fetch, calls } = mockFetch([{ status: 200, body: page }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    expect(await client.stories.list("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr").page()).toEqual(page);
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories");
+  });
+
+  it("listOwn: GET /v1/accounts/{accountId}/stories/own pages through every item", async () => {
+    const item = {
+      object: "story",
+      id: "id 1",
+      projectId: "projectId 1",
+      accountId: "accountId 1",
+      contactId: "contactId 1",
+      own: true,
+      profileName: "profileName 1",
+      username: "username 1",
+      type: "text",
+      text: "text 1",
+      backgroundColor: "backgroundColor 1",
+      font: 1,
+      media: {
+        url: "url 1",
+        mimeType: "mimeType 1",
+        filename: "filename 1",
+        size: 1,
+        width: 1,
+        height: 1,
+        durationSeconds: 1,
+        gifPlayback: true,
+        downloaded: true,
+      },
+      status: "queued",
+      viewedAt: "2026-09-24T09:00:00.000Z",
+      authorNotified: true,
+      reaction: "reaction 1",
+      viewCount: 1,
+      postedAt: "2026-09-24T09:00:00.000Z",
+      expiresAt: "2026-09-24T09:00:00.000Z",
+      deletedAt: "2026-09-24T09:00:00.000Z",
+      createdAt: "2026-09-24T09:00:00.000Z",
+    };
+    const params: StoriesListOwnParams = { limit: 50, cursor: "cursor 1" };
+    const { fetch, calls } = mockFetch([
+      { status: 200, body: { object: "list", items: [item], nextCursor: "cursor_2" } },
+      { status: 200, body: { object: "list", items: [item], nextCursor: null } },
+    ]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const items = await client.stories.listOwn("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", params).toArray();
+    expect(items).toEqual([item, item]);
+    expect(calls.map((c) => c.method)).toEqual(["GET", "GET"]);
+    expect(calls.map((c) => c.url)).toEqual([
+      "https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories/own?limit=50&cursor=cursor+1",
+      "https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories/own?limit=50&cursor=cursor_2",
+    ]);
+  });
+
+  it("listOwn: fetches one page without params", async () => {
+    const item = {
+      object: "story",
+      id: "id 1",
+      projectId: "projectId 1",
+      accountId: "accountId 1",
+      contactId: "contactId 1",
+      own: true,
+      profileName: "profileName 1",
+      username: "username 1",
+      type: "text",
+      text: "text 1",
+      backgroundColor: "backgroundColor 1",
+      font: 1,
+      media: {
+        url: "url 1",
+        mimeType: "mimeType 1",
+        filename: "filename 1",
+        size: 1,
+        width: 1,
+        height: 1,
+        durationSeconds: 1,
+        gifPlayback: true,
+        downloaded: true,
+      },
+      status: "queued",
+      viewedAt: "2026-09-24T09:00:00.000Z",
+      authorNotified: true,
+      reaction: "reaction 1",
+      viewCount: 1,
+      postedAt: "2026-09-24T09:00:00.000Z",
+      expiresAt: "2026-09-24T09:00:00.000Z",
+      deletedAt: "2026-09-24T09:00:00.000Z",
+      createdAt: "2026-09-24T09:00:00.000Z",
+    };
+    const page = { object: "list", items: [item], nextCursor: null };
+    const { fetch, calls } = mockFetch([{ status: 200, body: page }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    expect(await client.stories.listOwn("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr").page()).toEqual(page);
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories/own");
+  });
+
+  it("get: GET /v1/accounts/{accountId}/stories/{storyId}", async () => {
+    const response = {
+      object: "story",
+      id: "id 1",
+      projectId: "projectId 1",
+      accountId: "accountId 1",
+      contactId: "contactId 1",
+      own: true,
+      profileName: "profileName 1",
+      username: "username 1",
+      type: "text",
+      text: "text 1",
+      backgroundColor: "backgroundColor 1",
+      font: 1,
+      media: {
+        url: "url 1",
+        mimeType: "mimeType 1",
+        filename: "filename 1",
+        size: 1,
+        width: 1,
+        height: 1,
+        durationSeconds: 1,
+        gifPlayback: true,
+        downloaded: true,
+      },
+      status: "queued",
+      viewedAt: "2026-09-24T09:00:00.000Z",
+      authorNotified: true,
+      reaction: "reaction 1",
+      viewCount: 1,
+      postedAt: "2026-09-24T09:00:00.000Z",
+      expiresAt: "2026-09-24T09:00:00.000Z",
+      deletedAt: "2026-09-24T09:00:00.000Z",
+      createdAt: "2026-09-24T09:00:00.000Z",
+    };
+    const { fetch, calls } = mockFetch([{ status: 200, body: response }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.stories.get("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", "s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea");
+    expect(result).toEqual(response);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("GET");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories/s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea");
+    expect(calls[0]!.body).toBeUndefined();
+    expect(calls[0]!.headers["Idempotency-Key"]).toBeUndefined();
+  });
+
+  it("getMedia: GET /v1/accounts/{accountId}/stories/{storyId}/media", async () => {
+    const response = {
+      object: "media",
+      storyId: "storyId 1",
+      url: "url 1",
+      mimeType: "mimeType 1",
+      filename: "filename 1",
+      size: 1,
+    };
+    const { fetch, calls } = mockFetch([{ status: 200, body: response }]);
+    const params: StoriesGetMediaParams = { redirect: true };
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.stories.getMedia("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", "s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea", params);
+    expect(result).toEqual(response);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("GET");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories/s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea/media?redirect=true");
+    expect(calls[0]!.body).toBeUndefined();
+    expect(calls[0]!.headers["Idempotency-Key"]).toBeUndefined();
+  });
+
+  it("getMedia: works without params", async () => {
+    const response = {
+      object: "media",
+      storyId: "storyId 1",
+      url: "url 1",
+      mimeType: "mimeType 1",
+      filename: "filename 1",
+      size: 1,
+    };
+    const { fetch, calls } = mockFetch([{ status: 200, body: response }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.stories.getMedia("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", "s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea");
+    expect(result).toEqual(response);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("GET");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories/s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea/media");
+    expect(calls[0]!.body).toBeUndefined();
+    expect(calls[0]!.headers["Idempotency-Key"]).toBeUndefined();
+  });
+
+  it("listViewers: GET /v1/accounts/{accountId}/stories/{storyId}/viewers pages through every item", async () => {
+    const item = {
+      object: "story_viewer",
+      accountId: "accountId 1",
+      storyId: "storyId 1",
+      contactId: "contactId 1",
+      viewedAt: "2026-09-24T09:00:00.000Z",
+      reaction: "reaction 1",
+      reactedAt: "2026-09-24T09:00:00.000Z",
+    };
+    const params: StoriesListViewersParams = { limit: 50, cursor: "cursor 1" };
+    const { fetch, calls } = mockFetch([
+      { status: 200, body: { object: "list", items: [item], nextCursor: "cursor_2" } },
+      { status: 200, body: { object: "list", items: [item], nextCursor: null } },
+    ]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const items = await client.stories.listViewers("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", "s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea", params).toArray();
+    expect(items).toEqual([item, item]);
+    expect(calls.map((c) => c.method)).toEqual(["GET", "GET"]);
+    expect(calls.map((c) => c.url)).toEqual([
+      "https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories/s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea/viewers?limit=50&cursor=cursor+1",
+      "https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories/s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea/viewers?limit=50&cursor=cursor_2",
+    ]);
+  });
+
+  it("listViewers: fetches one page without params", async () => {
+    const item = {
+      object: "story_viewer",
+      accountId: "accountId 1",
+      storyId: "storyId 1",
+      contactId: "contactId 1",
+      viewedAt: "2026-09-24T09:00:00.000Z",
+      reaction: "reaction 1",
+      reactedAt: "2026-09-24T09:00:00.000Z",
+    };
+    const page = { object: "list", items: [item], nextCursor: null };
+    const { fetch, calls } = mockFetch([{ status: 200, body: page }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    expect(await client.stories.listViewers("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", "s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea").page()).toEqual(page);
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories/s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea/viewers");
+  });
+
+  it("view: POST /v1/accounts/{accountId}/stories/{storyId}/view", async () => {
+    const response = {
+      object: "story",
+      id: "id 1",
+      projectId: "projectId 1",
+      accountId: "accountId 1",
+      contactId: "contactId 1",
+      own: true,
+      profileName: "profileName 1",
+      username: "username 1",
+      type: "text",
+      text: "text 1",
+      backgroundColor: "backgroundColor 1",
+      font: 1,
+      media: {
+        url: "url 1",
+        mimeType: "mimeType 1",
+        filename: "filename 1",
+        size: 1,
+        width: 1,
+        height: 1,
+        durationSeconds: 1,
+        gifPlayback: true,
+        downloaded: true,
+      },
+      status: "queued",
+      viewedAt: "2026-09-24T09:00:00.000Z",
+      authorNotified: true,
+      reaction: "reaction 1",
+      viewCount: 1,
+      postedAt: "2026-09-24T09:00:00.000Z",
+      expiresAt: "2026-09-24T09:00:00.000Z",
+      deletedAt: "2026-09-24T09:00:00.000Z",
+      createdAt: "2026-09-24T09:00:00.000Z",
+    };
+    const { fetch, calls } = mockFetch([{ status: 200, body: response }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.stories.view("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", "s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea");
+    expect(result).toEqual(response);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("POST");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories/s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea/view");
+    expect(calls[0]!.body).toBeUndefined();
+    expect(calls[0]!.headers["Idempotency-Key"]).toMatch(/.+/);
+  });
+
+  it("react: POST /v1/accounts/{accountId}/stories/{storyId}/react", async () => {
+    const { fetch, calls } = mockFetch([{ status: 204 }]);
+    const params: StoriesReactParams = { emoji: "emoji 1" };
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.stories.react("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", "s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea", params);
+    expect(result).toBeUndefined();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("POST");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories/s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea/react");
+    expect(calls[0]!.body).toEqual({ emoji: "emoji 1" });
+    expect(calls[0]!.headers["Idempotency-Key"]).toMatch(/.+/);
+  });
+
+  it("delete: DELETE /v1/accounts/{accountId}/stories/{storyId}", async () => {
+    const { fetch, calls } = mockFetch([{ status: 204 }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.stories.delete("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", "s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea");
+    expect(result).toBeUndefined();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("DELETE");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/stories/s97fd2k4w8qc1n5x7v3b9yt6r0hjm2ea");
+    expect(calls[0]!.body).toBeUndefined();
+    expect(calls[0]!.headers["Idempotency-Key"]).toBeUndefined();
   });
 });

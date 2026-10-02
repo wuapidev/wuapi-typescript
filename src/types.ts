@@ -426,7 +426,7 @@ export type ChatType = "direct" | "group" | "channel" | "story";
  */
 export interface MessageMedia {
   /**
-   * `downloaded: true`: the file itself. Received: stored by wuapi; the URL does not expire and needs no API key, so anyone who has it can download the file: treat it as a secret. It stops working when the message is deleted. Sent: the URL you gave, or, for a file sent with `media.uploadId`, the stored file (the same kind of URL as a received file's, working until the message is deleted). `downloaded: false`: `GET /v1/messages/{messageId}/media` on api.wuapi.dev, which needs the API key (`Authorization: Bearer`) and answers a redirect to the file. A file sent from the phone itself (`source: phone`) is handled like a received one. `null` when wuapi has nothing to fetch the file with. Messages imported by history sync (`source: history`) have no `media` at all: the import carries what a message was, not its file.
+   * `downloaded: true`: the file itself. Received: stored by wuapi; the URL does not expire and needs no API key, so anyone who has it can download the file: treat it as a secret. It stops working when the message is deleted. Sent: the URL you gave, or, for a file sent with `media.uploadId`, the stored file (the same kind of URL as a received file's, working until the message is deleted). `downloaded: false`: `GET /v1/messages/{messageId}/media` on api.wuapi.dev, which needs the API key (`Authorization: Bearer`) and answers a redirect to the file. A file sent from the phone itself (`source: phone`) is handled like a received one. `null` when wuapi has nothing to fetch the file with. Messages imported by history sync (`source: history`) have no `media` at all: the import carries what a message was, not its file. A message forwarded with `POST /v1/messages/{messageId}/forward` has the media of the message it was forwarded from: the same stored file when wuapi holds one (it keeps working until every message that points at it is deleted), your own URL when that message was sent with one, and `downloaded: false` when the file is still only on WhatsApp.
    */
   url: string | null;
   mimeType: string | null;
@@ -436,7 +436,7 @@ export interface MessageMedia {
    */
   size: number | null;
   /**
-   * Pixels, for images, video and stickers. Today only for an image sent through the API (JPEG, PNG or GIF), once it is `sent`; `null` otherwise, including every received file: the WhatsApp engine does not report the dimensions of received media yet.
+   * Pixels, for images, video and stickers. Today for an image (JPEG, PNG or GIF) or a WebP sticker sent through the API, once it is `sent`, and for a received sticker, as its sender declared them; `null` otherwise, including every other received file: the WhatsApp engine does not report the dimensions of received images and video yet. A forwarded message keeps its source's.
    */
   width: number | null;
   /** Pixels. Set and `null` together with `width`. */
@@ -445,6 +445,10 @@ export interface MessageMedia {
    * Length of an audio, voice note or video, in seconds. `null` when unknown, which today is always: the WhatsApp engine does not report it yet.
    */
   durationSeconds: number | null;
+  /**
+   * `true` for a video that WhatsApp plays as a GIF: it loops, muted, with no controls. Set on a received GIF (the message's `type` is `video`) and on a video sent with `media.gifPlayback`. `false` for everything else.
+   */
+  gifPlayback: boolean;
   /** `true`: `url` is the file. `false`: the file is still on WhatsApp; `url` fetches it on first use. */
   downloaded: boolean;
 }
@@ -526,6 +530,7 @@ export interface MessageError {
    * - `cancelled`: Deleted with `DELETE /v1/messages/{messageId}` while it was still queued; it was never sent.
    * - `payment_required`: It was queued before proxy traffic paused for an unpaid invoice, and the pause lasted more than 24 hours.
    * - `proxy_spend_cap_reached`: It was queued before proxy traffic paused at the monthly proxy spend cap, and the pause lasted more than 24 hours.
+   * - `media_expired`: A forward whose file WhatsApp no longer has and wuapi never stored, found out while sending it.
    */
   code: MessageErrorCode;
   message: string;
@@ -538,7 +543,8 @@ export type MessageErrorCode =
   | "account_offline"
   | "cancelled"
   | "payment_required"
-  | "proxy_spend_cap_reached";
+  | "proxy_spend_cap_reached"
+  | "media_expired";
 
 /** A message in a chat, stored by wuapi. */
 export interface Message {
@@ -579,11 +585,22 @@ export interface Message {
   calendarEvent: MessageCalendarEvent | null;
   /** Mentioned contact ids. */
   mentions: string[];
+  /**
+   * WhatsApp shows it as forwarded: it was forwarded to this chat (by a contact, from the phone, or with `POST /v1/messages/{messageId}/forward`), or it was sent with `forwarded: true`.
+   */
   forwarded: boolean;
+  /**
+   * WhatsApp's "Forwarded many times" (the double arrow): the message went through a chain of five or more forwards. Such a message can only be forwarded to one chat at a time (`POST /v1/messages/{messageId}/forward` with a single `to`). Always `false` when `forwarded` is `false`.
+   */
+  forwardedManyTimes: boolean;
   viewOnce: boolean;
   starred: boolean;
   /** The wuapi id of the quoted (or reacted-to) message. */
   replyToMessageId: string | null;
+  /**
+   * The id of the story this message replies to, `null` when it replies to none. A contact's reply to a story the account posted names that story (its id is also its message id); a reply the account sent with `replyToStoryId` names the contact's story. `null` too when wuapi does not hold the story (it was posted before stories were on for the account, or it expired).
+   */
+  replyToStoryId: string | null;
   status: MessageStatus;
   /** Why it failed, when `status` is `failed`. */
   error: MessageError | null;
@@ -777,13 +794,21 @@ export interface SendTextMessageRequest {
   mentions?: string[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
-  /** Mark as forwarded. */
+  /**
+   * Mark this new message as forwarded: the recipient sees the "Forwarded" label on content you supply. To forward a message wuapi already stores (its text, file, location or contact card, without moving any bytes), use `POST /v1/messages/{messageId}/forward` instead.
+   */
   forwarded?: boolean;
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
   linkPreview?: SendLinkPreview;
-  /** A wuapi message id in the same chat to quote. Any type. Not for channel posts. */
+  /**
+   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   */
   replyToMessageId?: string;
+  /**
+   * Reply to a contact's story: the story's `id` (from `GET /v1/accounts/{accountId}/stories`). `to` must be the story's `contactId`: the reply is a message in the chat with its author, who sees it as a reply to their story. Not together with `replyToMessageId`; not for groups or channels.
+   */
+  replyToStoryId?: string;
   /** Up to 50 string values; keys 1-64 printable ASCII characters not starting with `$` or `_`. */
   metadata?: Record<string, string>;
 }
@@ -805,14 +830,22 @@ export interface SendImageMessageRequest {
   mentions?: string[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
-  /** Mark as forwarded. */
+  /**
+   * Mark this new message as forwarded: the recipient sees the "Forwarded" label on content you supply. To forward a message wuapi already stores (its text, file, location or contact card, without moving any bytes), use `POST /v1/messages/{messageId}/forward` instead.
+   */
   forwarded?: boolean;
   /** The recipient can open it once. */
   viewOnce?: boolean;
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
-  /** A wuapi message id in the same chat to quote. Any type. Not for channel posts. */
+  /**
+   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   */
   replyToMessageId?: string;
+  /**
+   * Reply to a contact's story: the story's `id` (from `GET /v1/accounts/{accountId}/stories`). `to` must be the story's `contactId`: the reply is a message in the chat with its author, who sees it as a reply to their story. Not together with `replyToMessageId`; not for groups or channels.
+   */
+  replyToStoryId?: string;
   /** Up to 50 string values; keys 1-64 printable ASCII characters not starting with `$` or `_`. */
   metadata?: Record<string, string>;
 }
@@ -834,14 +867,22 @@ export interface SendVideoMessageRequest {
   mentions?: string[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
-  /** Mark as forwarded. */
+  /**
+   * Mark this new message as forwarded: the recipient sees the "Forwarded" label on content you supply. To forward a message wuapi already stores (its text, file, location or contact card, without moving any bytes), use `POST /v1/messages/{messageId}/forward` instead.
+   */
   forwarded?: boolean;
   /** The recipient can open it once. */
   viewOnce?: boolean;
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
-  /** A wuapi message id in the same chat to quote. Any type. Not for channel posts. */
+  /**
+   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   */
   replyToMessageId?: string;
+  /**
+   * Reply to a contact's story: the story's `id` (from `GET /v1/accounts/{accountId}/stories`). `to` must be the story's `contactId`: the reply is a message in the chat with its author, who sees it as a reply to their story. Not together with `replyToMessageId`; not for groups or channels.
+   */
+  replyToStoryId?: string;
   /** Up to 50 string values; keys 1-64 printable ASCII characters not starting with `$` or `_`. */
   metadata?: Record<string, string>;
 }
@@ -863,14 +904,22 @@ export interface SendAudioMessageRequest {
   mentions?: string[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
-  /** Mark as forwarded. */
+  /**
+   * Mark this new message as forwarded: the recipient sees the "Forwarded" label on content you supply. To forward a message wuapi already stores (its text, file, location or contact card, without moving any bytes), use `POST /v1/messages/{messageId}/forward` instead.
+   */
   forwarded?: boolean;
   /** The recipient can open it once. */
   viewOnce?: boolean;
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
-  /** A wuapi message id in the same chat to quote. Any type. Not for channel posts. */
+  /**
+   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   */
   replyToMessageId?: string;
+  /**
+   * Reply to a contact's story: the story's `id` (from `GET /v1/accounts/{accountId}/stories`). `to` must be the story's `contactId`: the reply is a message in the chat with its author, who sees it as a reply to their story. Not together with `replyToMessageId`; not for groups or channels.
+   */
+  replyToStoryId?: string;
   /** Up to 50 string values; keys 1-64 printable ASCII characters not starting with `$` or `_`. */
   metadata?: Record<string, string>;
 }
@@ -892,14 +941,22 @@ export interface SendVoiceMessageRequest {
   mentions?: string[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
-  /** Mark as forwarded. */
+  /**
+   * Mark this new message as forwarded: the recipient sees the "Forwarded" label on content you supply. To forward a message wuapi already stores (its text, file, location or contact card, without moving any bytes), use `POST /v1/messages/{messageId}/forward` instead.
+   */
   forwarded?: boolean;
   /** The recipient can open it once. */
   viewOnce?: boolean;
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
-  /** A wuapi message id in the same chat to quote. Any type. Not for channel posts. */
+  /**
+   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   */
   replyToMessageId?: string;
+  /**
+   * Reply to a contact's story: the story's `id` (from `GET /v1/accounts/{accountId}/stories`). `to` must be the story's `contactId`: the reply is a message in the chat with its author, who sees it as a reply to their story. Not together with `replyToMessageId`; not for groups or channels.
+   */
+  replyToStoryId?: string;
   /** Up to 50 string values; keys 1-64 printable ASCII characters not starting with `$` or `_`. */
   metadata?: Record<string, string>;
 }
@@ -921,12 +978,20 @@ export interface SendDocumentMessageRequest {
   mentions?: string[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
-  /** Mark as forwarded. */
+  /**
+   * Mark this new message as forwarded: the recipient sees the "Forwarded" label on content you supply. To forward a message wuapi already stores (its text, file, location or contact card, without moving any bytes), use `POST /v1/messages/{messageId}/forward` instead.
+   */
   forwarded?: boolean;
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
-  /** A wuapi message id in the same chat to quote. Any type. Not for channel posts. */
+  /**
+   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   */
   replyToMessageId?: string;
+  /**
+   * Reply to a contact's story: the story's `id` (from `GET /v1/accounts/{accountId}/stories`). `to` must be the story's `contactId`: the reply is a message in the chat with its author, who sees it as a reply to their story. Not together with `replyToMessageId`; not for groups or channels.
+   */
+  replyToStoryId?: string;
   /** Up to 50 string values; keys 1-64 printable ASCII characters not starting with `$` or `_`. */
   metadata?: Record<string, string>;
 }
@@ -948,12 +1013,20 @@ export interface SendStickerMessageRequest {
   mentions?: string[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
-  /** Mark as forwarded. */
+  /**
+   * Mark this new message as forwarded: the recipient sees the "Forwarded" label on content you supply. To forward a message wuapi already stores (its text, file, location or contact card, without moving any bytes), use `POST /v1/messages/{messageId}/forward` instead.
+   */
   forwarded?: boolean;
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
-  /** A wuapi message id in the same chat to quote. Any type. Not for channel posts. */
+  /**
+   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   */
   replyToMessageId?: string;
+  /**
+   * Reply to a contact's story: the story's `id` (from `GET /v1/accounts/{accountId}/stories`). `to` must be the story's `contactId`: the reply is a message in the chat with its author, who sees it as a reply to their story. Not together with `replyToMessageId`; not for groups or channels.
+   */
+  replyToStoryId?: string;
   /** Up to 50 string values; keys 1-64 printable ASCII characters not starting with `$` or `_`. */
   metadata?: Record<string, string>;
 }
@@ -973,12 +1046,20 @@ export interface SendLocationMessageRequest {
   mentions?: string[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
-  /** Mark as forwarded. */
+  /**
+   * Mark this new message as forwarded: the recipient sees the "Forwarded" label on content you supply. To forward a message wuapi already stores (its text, file, location or contact card, without moving any bytes), use `POST /v1/messages/{messageId}/forward` instead.
+   */
   forwarded?: boolean;
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
-  /** A wuapi message id in the same chat to quote. Any type. Not for channel posts. */
+  /**
+   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   */
   replyToMessageId?: string;
+  /**
+   * Reply to a contact's story: the story's `id` (from `GET /v1/accounts/{accountId}/stories`). `to` must be the story's `contactId`: the reply is a message in the chat with its author, who sees it as a reply to their story. Not together with `replyToMessageId`; not for groups or channels.
+   */
+  replyToStoryId?: string;
   /** Up to 50 string values; keys 1-64 printable ASCII characters not starting with `$` or `_`. */
   metadata?: Record<string, string>;
 }
@@ -998,12 +1079,20 @@ export interface SendContactMessageRequest {
   mentions?: string[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
-  /** Mark as forwarded. */
+  /**
+   * Mark this new message as forwarded: the recipient sees the "Forwarded" label on content you supply. To forward a message wuapi already stores (its text, file, location or contact card, without moving any bytes), use `POST /v1/messages/{messageId}/forward` instead.
+   */
   forwarded?: boolean;
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
-  /** A wuapi message id in the same chat to quote. Any type. Not for channel posts. */
+  /**
+   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   */
   replyToMessageId?: string;
+  /**
+   * Reply to a contact's story: the story's `id` (from `GET /v1/accounts/{accountId}/stories`). `to` must be the story's `contactId`: the reply is a message in the chat with its author, who sees it as a reply to their story. Not together with `replyToMessageId`; not for groups or channels.
+   */
+  replyToStoryId?: string;
   /** Up to 50 string values; keys 1-64 printable ASCII characters not starting with `$` or `_`. */
   metadata?: Record<string, string>;
 }
@@ -1024,12 +1113,20 @@ export interface SendContactsMessageRequest {
   mentions?: string[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
-  /** Mark as forwarded. */
+  /**
+   * Mark this new message as forwarded: the recipient sees the "Forwarded" label on content you supply. To forward a message wuapi already stores (its text, file, location or contact card, without moving any bytes), use `POST /v1/messages/{messageId}/forward` instead.
+   */
   forwarded?: boolean;
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
-  /** A wuapi message id in the same chat to quote. Any type. Not for channel posts. */
+  /**
+   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   */
   replyToMessageId?: string;
+  /**
+   * Reply to a contact's story: the story's `id` (from `GET /v1/accounts/{accountId}/stories`). `to` must be the story's `contactId`: the reply is a message in the chat with its author, who sees it as a reply to their story. Not together with `replyToMessageId`; not for groups or channels.
+   */
+  replyToStoryId?: string;
   /** Up to 50 string values; keys 1-64 printable ASCII characters not starting with `$` or `_`. */
   metadata?: Record<string, string>;
 }
@@ -1049,12 +1146,20 @@ export interface SendPollMessageRequest {
   mentions?: string[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
-  /** Mark as forwarded. */
+  /**
+   * Mark this new message as forwarded: the recipient sees the "Forwarded" label on content you supply. To forward a message wuapi already stores (its text, file, location or contact card, without moving any bytes), use `POST /v1/messages/{messageId}/forward` instead.
+   */
   forwarded?: boolean;
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
-  /** A wuapi message id in the same chat to quote. Any type. Not for channel posts. */
+  /**
+   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   */
   replyToMessageId?: string;
+  /**
+   * Reply to a contact's story: the story's `id` (from `GET /v1/accounts/{accountId}/stories`). `to` must be the story's `contactId`: the reply is a message in the chat with its author, who sees it as a reply to their story. Not together with `replyToMessageId`; not for groups or channels.
+   */
+  replyToStoryId?: string;
   /** Up to 50 string values; keys 1-64 printable ASCII characters not starting with `$` or `_`. */
   metadata?: Record<string, string>;
 }
@@ -1074,12 +1179,20 @@ export interface SendCalendarEventMessageRequest {
   mentions?: string[];
   /** Groups only: mention every participant. */
   mentionAll?: boolean;
-  /** Mark as forwarded. */
+  /**
+   * Mark this new message as forwarded: the recipient sees the "Forwarded" label on content you supply. To forward a message wuapi already stores (its text, file, location or contact card, without moving any bytes), use `POST /v1/messages/{messageId}/forward` instead.
+   */
   forwarded?: boolean;
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
-  /** A wuapi message id in the same chat to quote. Any type. Not for channel posts. */
+  /**
+   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   */
   replyToMessageId?: string;
+  /**
+   * Reply to a contact's story: the story's `id` (from `GET /v1/accounts/{accountId}/stories`). `to` must be the story's `contactId`: the reply is a message in the chat with its author, who sees it as a reply to their story. Not together with `replyToMessageId`; not for groups or channels.
+   */
+  replyToStoryId?: string;
   /** Up to 50 string values; keys 1-64 printable ASCII characters not starting with `$` or `_`. */
   metadata?: Record<string, string>;
 }
@@ -1109,6 +1222,13 @@ export interface MessageEditRequest {
 export interface VoteRequest {
   /** Names of this poll's options. `[]` retracts the vote. */
   options: string[];
+}
+
+export interface ForwardMessageRequest {
+  /**
+   * The chats to forward to, each named once: contact ids (E.164, bare digits or `lid:<digits>`) or group ids, of the same account as the message. At most 5, WhatsApp's limit per forward; exactly 1 when the message is `forwardedManyTimes`. Usernames, channels and `stories` are not accepted.
+   */
+  to: string[];
 }
 
 export interface ReactRequest {
@@ -1176,6 +1296,185 @@ export type MediaStoryCreateRequestType = "image" | "video";
  * A text story (`type: text`, requires `text`) or a media story (`type: image` or `video`, requires `media`). A body without `type` is posted as `text`.
  */
 export type StoryCreateRequest = TextStoryCreateRequest | MediaStoryCreateRequest;
+
+/**
+ * A story's file. A contact's story is never downloaded when it arrives: `downloaded` is `false` and `url` is the wuapi endpoint that downloads it on first use, then serves it from storage until the story expires. Reading the file does not mark the story as viewed.
+ */
+export interface StoryFile {
+  /**
+   * `downloaded: false`: `GET /v1/accounts/{accountId}/stories/{storyId}/media` on api.wuapi.dev, which needs the API key (`Authorization: Bearer`) and answers a redirect to the file. `downloaded: true`: the file itself (stored by wuapi; no API key needed, so treat the URL as a secret), until the story expires or is deleted. For a story the account posted: the URL it was posted with, or the stored file of an upload. `null` when there is nothing to fetch the file with.
+   */
+  url: string | null;
+  mimeType: string | null;
+  filename: string | null;
+  /** Bytes, when known: what WhatsApp declared, or the stored file's size. */
+  size: number | null;
+  /** Pixels, for images and video, as WhatsApp declared them. `null` when unknown. */
+  width: number | null;
+  /** Pixels. Set and `null` together with `width`. */
+  height: number | null;
+  /** Length of a video or voice story, in seconds. `null` when unknown. */
+  durationSeconds: number | null;
+  /**
+   * `true` for a video story that WhatsApp plays as a GIF: it loops, muted, with no controls (the story's `type` is `video`). `false` for everything else.
+   */
+  gifPlayback: boolean;
+  /** `true`: `url` is the file. `false`: the file is still on WhatsApp; `url` fetches it on first use. */
+  downloaded: boolean;
+}
+
+/**
+ * A WhatsApp Status post: one a contact of the account posted (`own: false`), or one the account posted (`own: true`, whose `id` is also the id of its message). A story lasts 24 hours from `postedAt`.
+ */
+export interface Story {
+  /** Always `story`. */
+  object: "story";
+  id: string;
+  /**
+   * Project the resource belongs to, `null` when it is in no project. Set at creation and never changes.
+   */
+  projectId: string | null;
+  /** The account this belongs to. */
+  accountId: string;
+  /**
+   * Who posted it: the contact's id (E.164, or `lid:<digits>` when WhatsApp hides their number), or the account's own number when `own`. `null` only for an account whose number is not known yet.
+   */
+  contactId: string | null;
+  /** `true`: the account posted it (through the API or from its phone). `false`: a contact did. */
+  own: boolean;
+  /** The author's WhatsApp display name. `null` on the account's own stories. */
+  profileName: string | null;
+  /** The author's WhatsApp username (lowercase, without the `@`), when WhatsApp shared it. */
+  username: string | null;
+  /**
+   * `text`, `image`, `video`, or `voice` / `audio` for a voice story. Anything else WhatsApp may add arrives as its message type, or `unknown`.
+   */
+  type: MessageType;
+  /** The text of a text story, or the caption of an image or video. */
+  text: string | null;
+  /** A text story's background, `#RRGGBB`. `null` on other types, and when WhatsApp sent none. */
+  backgroundColor: string | null;
+  /**
+   * A text story's font, WhatsApp's font number (0, 1, 2, 6, 7, 8, 9 or 10). `null` on other types, and when WhatsApp sent none.
+   */
+  font: number | null;
+  media: StoryFile | null;
+  /**
+   * `received` for a contact's story. For a story the account posted, its message's status: `queued`, `sent`, `delivered` (it reached someone), `read` (someone saw it) or `failed`.
+   */
+  status: MessageStatus;
+  /**
+   * When the account saw this contact's story: when `POST .../stories/{storyId}/view` was called, or when the account opened it on its phone or another device. `null`: not seen. Always `null` on the account's own stories.
+   */
+  viewedAt: string | null;
+  /**
+   * Set by `POST .../stories/{storyId}/view`: `true` when WhatsApp told the author the account saw the story, `false` when it did not because the account's `readReceipts` privacy is `none`. `null` when the story was not viewed through the API.
+   */
+  authorNotified: boolean | null;
+  /** The account's reaction to this contact's story (an emoji), `null` when it has none. */
+  reaction: string | null;
+  /**
+   * How many contacts saw this story of the account, as far as WhatsApp reported (read receipts). `null` on a contact's story.
+   */
+  viewCount: number | null;
+  /**
+   * WhatsApp's own time of the post. `null` on a story of the account that is still `queued` (or `failed`).
+   */
+  postedAt: string | null;
+  /**
+   * 24 hours after `postedAt`: a contact's story is deleted then, and a posted one leaves `GET .../stories/own`. `null` while `postedAt` is.
+   */
+  expiresAt: string | null;
+  /**
+   * Set when its author deleted it: in `story.deleted` (a contact's story, whose content is cleared and which no longer exists afterwards), and on a deleted story of the account.
+   */
+  deletedAt: string | null;
+  createdAt: string;
+}
+
+/** A page of `Story` objects. */
+export interface StoryList {
+  /** Always `list`. */
+  object: "list";
+  items: Story[];
+  /** Pass as `cursor` to get the next page. `null` on the last page. */
+  nextCursor: string | null;
+}
+
+/** One contact's stories of the last 24 hours, oldest first (the order they play in). */
+export interface StoryGroup {
+  /** Always `story_group`. */
+  object: "story_group";
+  /** The account this belongs to. */
+  accountId: string;
+  /** The author: a contact id (E.164, or `lid:<digits>` when WhatsApp hides their number). */
+  contactId: string;
+  /** The author's WhatsApp display name, as their latest story carried it. */
+  profileName: string | null;
+  /** The author's WhatsApp username, when WhatsApp shared it. */
+  username: string | null;
+  /**
+   * The account muted this contact's stories on WhatsApp (on its phone). Read only: muting and unmuting through the API is not supported.
+   */
+  muted: boolean;
+  /** How many stories the group holds. */
+  storyCount: number;
+  /** How many of them the account has not seen. */
+  unviewedCount: number;
+  /** When the newest one was posted. The list is ordered by it, newest first. */
+  lastPostedAt: string;
+  /** At most 100. */
+  stories: Story[];
+}
+
+/** A page of `StoryGroup` objects. */
+export interface StoryGroupList {
+  /** Always `list`. */
+  object: "list";
+  items: StoryGroup[];
+  /** Pass as `cursor` to get the next page. `null` on the last page. */
+  nextCursor: string | null;
+}
+
+/** A contact who saw a story the account posted. */
+export interface StoryViewer {
+  /** Always `story_viewer`. */
+  object: "story_viewer";
+  /** The account this belongs to. */
+  accountId: string;
+  /** The story (its id is also its message id). */
+  storyId: string;
+  /** The viewer: E.164, or `lid:<digits>` when WhatsApp only gave their hidden id. */
+  contactId: string;
+  /** When they saw it (WhatsApp's time of the receipt). */
+  viewedAt: string;
+  /** Their reaction to the story (an emoji), `null` when they sent none or removed it. */
+  reaction: string | null;
+  /** When they reacted. */
+  reactedAt: string | null;
+}
+
+/** A page of `StoryViewer` objects. */
+export interface StoryViewerList {
+  /** Always `list`. */
+  object: "list";
+  items: StoryViewer[];
+  /** Pass as `cursor` to get the next page. `null` on the last page. */
+  nextCursor: string | null;
+}
+
+/** A story's stored file, from `GET /v1/accounts/{accountId}/stories/{storyId}/media` asked for JSON. */
+export interface StoryMediaFile {
+  /** Always `media`. */
+  object: "media";
+  storyId: string;
+  /** The file. No API key needed. */
+  url: string;
+  mimeType: string | null;
+  filename: string | null;
+  /** Bytes, when known. */
+  size: number | null;
+}
 
 export interface ChatPresenceRequest {
   /**
@@ -1620,6 +1919,97 @@ export interface StickerPackStickersItem {
   emojis: string[];
 }
 
+/**
+ * One of the account's favorite stickers: the star tab of WhatsApp's sticker picker. WhatsApp keeps the list in sync between the phone and its linked devices; wuapi stores it as the phone sends it.
+ */
+export interface FavoriteSticker {
+  /** Always `favorite_sticker`. */
+  object: "favorite_sticker";
+  /** The favorite's id in wuapi. It stays the same while the sticker is a favorite. */
+  id: string;
+  /** The account this belongs to. */
+  accountId: string;
+  /** `image/webp`, or `application/was` for a Lottie sticker. */
+  mimeType: string;
+  /**
+   * Whether the sticker moves. WhatsApp's list does not say it for a WebP: `null` until wuapi has the file (after the first request for `media.url`), then what the file says. Always `true` for a Lottie sticker.
+   */
+  animated: boolean | null;
+  /**
+   * A Lottie (vector animation) sticker. Its file is not an image: a client needs a Lottie player to draw it.
+   */
+  lottie: boolean;
+  /** Pixels. `null` when WhatsApp did not say and wuapi has not fetched the file. */
+  width: number | null;
+  /** Pixels. Set and `null` together with `width`. */
+  height: number | null;
+  /** Bytes: what WhatsApp declared, then the stored file's size. */
+  size: number | null;
+  /**
+   * The emojis the sticker's maker tagged it with, read from the file. `null` until wuapi has the file, and when the file carries none.
+   */
+  emojis: string[] | null;
+  /** When it was favorited. The list is ordered by it, newest first, as WhatsApp shows it. */
+  favoritedAt: string;
+  /**
+   * The sticker's file, like a message's on-demand media. The file is on WhatsApp until someone asks for it.
+   */
+  media: FavoriteStickerMedia;
+}
+
+export interface FavoriteStickerMedia {
+  /**
+   * `downloaded: true`: the file itself, stored by wuapi; the URL does not expire and needs no API key, so treat it as a secret. It stops working when the sticker is no longer a favorite. `downloaded: false`: `GET /v1/accounts/{accountId}/stickers/favorites/{stickerId}/media` on api.wuapi.dev, which needs the API key (`Authorization: Bearer`), fetches the file from WhatsApp once and answers a redirect to it. `null` when WhatsApp no longer has the file (the endpoint answered `410 media_expired`).
+   */
+  url: string | null;
+  /** `true`: `url` is the file. `false`: the file is still on WhatsApp; `url` fetches it on first use. */
+  downloaded: boolean;
+}
+
+/** A page of `FavoriteSticker` objects. */
+export interface FavoriteStickerList {
+  /** Always `list`. */
+  object: "list";
+  items: FavoriteSticker[];
+  /** Pass as `cursor` to get the next page. `null` on the last page. */
+  nextCursor: string | null;
+}
+
+/**
+ * A favorite sticker's stored file, from `GET /v1/accounts/{accountId}/stickers/favorites/{stickerId}/media` asked for JSON.
+ */
+export interface FavoriteStickerMediaFile {
+  /** Always `media`. */
+  object: "media";
+  stickerId: string;
+  /** The file. No API key needed. */
+  url: string;
+  mimeType: string | null;
+  /** Bytes, when known. */
+  size: number | null;
+}
+
+/**
+ * The sticker to favorite: exactly one of `messageId` (a sticker message of this account) or `uploadId` (a WebP file uploaded with `POST /v1/uploads`).
+ */
+export type FavoriteStickerAddRequest = FavoriteStickerFromMessage | FavoriteStickerFromUpload;
+
+/** Favorite the sticker of a message the account sent or received. */
+export interface FavoriteStickerFromMessage {
+  /**
+   * A message of this account with `type: sticker`. Its file must still be reachable: on WhatsApp (a received sticker not fetched yet), stored by wuapi, or at the URL it was sent from.
+   */
+  messageId: string;
+}
+
+/** Favorite a sticker file of your own. */
+export interface FavoriteStickerFromUpload {
+  /**
+   * The id of a `ready` upload (`POST /v1/uploads`) with `mimeType: image/webp`, at most 2 MB. WhatsApp shows a sticker best at 512x512 pixels. The upload is not used up: it can still be sent.
+   */
+  uploadId: string;
+}
+
 /** A catalog order. */
 export interface Order {
   /** Always `order`. */
@@ -1913,6 +2303,10 @@ export type WebhookEventType =
   | "message.edited"
   | "message.deleted"
   | "message.media_downloaded"
+  | "story.received"
+  | "story.deleted"
+  | "story.viewed"
+  | "story.reacted"
   | "poll.voted"
   | "group.joined"
   | "group.updated"
@@ -1924,6 +2318,7 @@ export type WebhookEventType =
   | "contact.picture_updated"
   | "contact.updated"
   | "blocklist.updated"
+  | "sticker.favorites_updated"
   | "label.updated"
   | "call.received"
   | "call.ended"
@@ -2484,6 +2879,28 @@ export interface BlocklistChangeChangesItem {
 
 export type BlocklistChangeChangesItemAction = "block" | "unblock";
 
+/** The account's favorite stickers changed. */
+export interface StickerFavoritesChange {
+  /** Always `sticker_favorites_change`. */
+  object: "sticker_favorites_change";
+  /** The account this belongs to. */
+  accountId: string;
+  /**
+   * `added`: one sticker was favorited (on the phone, on another device or through the API), or favorited again, which moves it to the top. `removed`: one stopped being a favorite. `synced`: wuapi read the whole list from WhatsApp (after linking, or when WhatsApp resynced it) and it differs from what wuapi held: read `GET .../stickers/favorites`.
+   */
+  reason: StickerFavoritesChangeReason;
+  /** The favorite that was added or removed. `null` for `synced`. */
+  stickerId: string | null;
+  /** The favorite, for `added`. `null` otherwise. */
+  sticker: FavoriteSticker | null;
+  /** How many stickers became favorites: 1 for `added`, the count for `synced`. */
+  added: number;
+  /** How many stopped being favorites: 1 for `removed`, the count for `synced`. */
+  removed: number;
+}
+
+export type StickerFavoritesChangeReason = "added" | "removed" | "synced";
+
 /** A label was edited or (un)assigned. */
 export interface LabelChange {
   /** Always `label_change`. */
@@ -2640,6 +3057,48 @@ export interface MessageEditedEventData {
 
 export interface MessageEditedEventDataPreviousAttributes {
   text: string | null;
+}
+
+/**
+ * `story.received`: a contact posted a story (an account receives them only once stories are on for it). Its file is on demand: `media.downloaded` is `false`. `story.deleted`: its author deleted it before it expired; `deletedAt` is set, the content is cleared and the story no longer exists. A story that simply expires fires nothing. Neither fires for the stories the account posts (those are messages: `message.sent`, `message.deleted`).
+ */
+export interface StoryEvent {
+  /** Event id (`evt_...`). Deduplicate on it. */
+  id: string;
+  object: "event";
+  type: StoryEventType;
+  createdAt: string;
+  organizationId: string;
+  /** The project the event belongs to, `null` when unassigned. */
+  projectId: string | null;
+  data: StoryEventData;
+}
+
+export type StoryEventType = "story.received" | "story.deleted";
+
+export interface StoryEventData {
+  object: Story;
+}
+
+/**
+ * `story.viewed`: a contact saw a story the account posted, once per contact and story. `story.reacted`: a contact reacted to one, or changed or removed their reaction (`reaction` is then `null`).
+ */
+export interface StoryViewerEvent {
+  /** Event id (`evt_...`). Deduplicate on it. */
+  id: string;
+  object: "event";
+  type: StoryViewerEventType;
+  createdAt: string;
+  organizationId: string;
+  /** The project the event belongs to, `null` when unassigned. */
+  projectId: string | null;
+  data: StoryViewerEventData;
+}
+
+export type StoryViewerEventType = "story.viewed" | "story.reacted";
+
+export interface StoryViewerEventData {
+  object: StoryViewer;
 }
 
 /** Someone voted in a poll. */
@@ -2820,6 +3279,23 @@ export interface BlocklistUpdatedEventData {
   object: BlocklistChange;
 }
 
+/** The account's favorite stickers changed. */
+export interface StickerFavoritesUpdatedEvent {
+  /** Event id (`evt_...`). Deduplicate on it. */
+  id: string;
+  object: "event";
+  type: "sticker.favorites_updated";
+  createdAt: string;
+  organizationId: string;
+  /** The project the event belongs to, `null` when unassigned. */
+  projectId: string | null;
+  data: StickerFavoritesUpdatedEventData;
+}
+
+export interface StickerFavoritesUpdatedEventData {
+  object: StickerFavoritesChange;
+}
+
 /**
  * A label was edited or (un)assigned to a chat or message. The full sync replays labels this way, which is how the label list arrives.
  */
@@ -2982,6 +3458,8 @@ export type ApiEvent =
   | AccountEvent
   | MessageEvent
   | MessageEditedEvent
+  | StoryEvent
+  | StoryViewerEvent
   | PollVotedEvent
   | GroupJoinedEvent
   | GroupUpdatedEvent
@@ -2992,6 +3470,7 @@ export type ApiEvent =
   | ContactPictureUpdatedEvent
   | ContactUpdatedEvent
   | BlocklistUpdatedEvent
+  | StickerFavoritesUpdatedEvent
   | LabelUpdatedEvent
   | CallEvent
   | ChannelMessageEvent
@@ -3182,11 +3661,77 @@ export type MessagesReactParams = ReactRequest;
 /** Params for `messages.vote`. */
 export type MessagesVoteParams = VoteRequest;
 
+/** Params for `messages.forward`. */
+export type MessagesForwardParams = ForwardMessageRequest;
+
 /** Params for `messages.addLabel`. */
 export type MessagesAddLabelParams = LabelAssignRequest;
 
 /** Params for `stories.create`. */
 export type StoriesCreateParams = StoryCreateRequest;
+
+/** Params for `stories.list`. */
+export interface StoriesListParams {
+  /**
+   * Only this contact's stories: an E.164 number, bare digits or `lid:<digits>` (the `contactId` of a group). At most one group comes back.
+   */
+  contactId?: string;
+  /**
+   * `true`: only the contacts with a story the account has not seen. A page may then hold fewer groups than `limit` while `nextCursor` is set: keep following the cursor.
+   */
+  unviewed?: boolean;
+  /**
+   * Page size, 1 to 100.
+   *
+   * @defaultValue `50`
+   */
+  limit?: number;
+  /**
+   * Opaque cursor from a previous page's `nextCursor`. An invalid or expired cursor answers `400 invalid_request`.
+   */
+  cursor?: string;
+}
+
+/** Params for `stories.listOwn`. */
+export interface StoriesListOwnParams {
+  /**
+   * Page size, 1 to 100.
+   *
+   * @defaultValue `50`
+   */
+  limit?: number;
+  /**
+   * Opaque cursor from a previous page's `nextCursor`. An invalid or expired cursor answers `400 invalid_request`.
+   */
+  cursor?: string;
+}
+
+/** Params for `stories.getMedia`. */
+export interface StoriesGetMediaParams {
+  /**
+   * `false` answers JSON with the file's URL instead of the `302` redirect.
+   *
+   * @defaultValue `true`
+   */
+  redirect?: boolean;
+}
+
+/** Params for `stories.listViewers`. */
+export interface StoriesListViewersParams {
+  /**
+   * Page size, 1 to 100.
+   *
+   * @defaultValue `50`
+   */
+  limit?: number;
+  /**
+   * Opaque cursor from a previous page's `nextCursor`. An invalid or expired cursor answers `400 invalid_request`.
+   */
+  cursor?: string;
+}
+
+/** Params for `stories.react`. */
+export type StoriesReactParams = ReactRequest;
 
 /** Params for `uploads.create`. */
 export type UploadsCreateParams = UploadCreateRequest;
@@ -3332,6 +3877,33 @@ export type PrivacyUpdateParams = PrivacyUpdateRequest;
 
 /** Params for `calls.reject`. */
 export type CallsRejectParams = CallRejectRequest;
+
+/** Params for `favoriteStickers.list`. */
+export interface FavoriteStickersListParams {
+  /**
+   * Page size, 1 to 100.
+   *
+   * @defaultValue `50`
+   */
+  limit?: number;
+  /**
+   * Opaque cursor from a previous page's `nextCursor`. An invalid or expired cursor answers `400 invalid_request`.
+   */
+  cursor?: string;
+}
+
+/** Params for `favoriteStickers.add`. */
+export type FavoriteStickersAddParams = FavoriteStickerAddRequest;
+
+/** Params for `favoriteStickers.getMedia`. */
+export interface FavoriteStickersGetMediaParams {
+  /**
+   * `false` answers JSON with the file's URL instead of the `302` redirect.
+   *
+   * @defaultValue `true`
+   */
+  redirect?: boolean;
+}
 
 /** Params for `orders.get`. */
 export interface OrdersGetParams {
@@ -3587,6 +4159,10 @@ export type WebhookEvent =
   | (MessageEvent & { type: "message.deleted" })
   | (MessageEvent & { type: "message.media_downloaded" })
   | MessageEditedEvent
+  | (StoryEvent & { type: "story.received" })
+  | (StoryEvent & { type: "story.deleted" })
+  | (StoryViewerEvent & { type: "story.viewed" })
+  | (StoryViewerEvent & { type: "story.reacted" })
   | PollVotedEvent
   | GroupJoinedEvent
   | GroupUpdatedEvent
@@ -3598,6 +4174,7 @@ export type WebhookEvent =
   | ContactPictureUpdatedEvent
   | ContactUpdatedEvent
   | BlocklistUpdatedEvent
+  | StickerFavoritesUpdatedEvent
   | LabelUpdatedEvent
   | (CallEvent & { type: "call.received" })
   | (CallEvent & { type: "call.ended" })

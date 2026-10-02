@@ -4,10 +4,12 @@ import { enc, type CallOptions } from "../core.js";
 import type { Paginator } from "../pagination.js";
 import type {
   Message,
+  MessageList,
   MessageMediaFile,
   MessagesAddLabelParams,
   MessagesDeleteParams,
   MessagesEditParams,
+  MessagesForwardParams,
   MessagesGetMediaParams,
   MessagesListParams,
   MessagesReactParams,
@@ -25,6 +27,8 @@ export class MessagesResource extends Resource {
    * Send `Idempotency-Key` so a retry never sends twice.
    *
    * Media types take `media.url` (a public URL our servers download) or `media.uploadId` (a file uploaded with `POST /v1/uploads`: a local file, a pasted image, a recorded voice note). An upload that does not exist, expired or belongs to another organization or project answers `404`; one that is still `pending` answers `400`.
+   *
+   * To reply to a contact's story, send the message to the story's author (`to`: its `contactId`) with `replyToStoryId`.
    *
    * `POST /v1/messages`
    */
@@ -172,6 +176,30 @@ export class MessagesResource extends Resource {
     return this._request<Message>(
       "POST",
       `/v1/messages/${enc(messageId)}/vote`,
+      { body: params, idempotent: true },
+      options,
+    );
+  }
+
+  /**
+   * Forward a message
+   *
+   * Forward a message wuapi stores (received, sent through the API or sent from the phone) to one or several chats of the same account, the way WhatsApp forwards: the recipients get the original content with the "Forwarded" label, and "Forwarded many times" once it went through five forwards.
+   *
+   * You send no content and no bytes. Text (with its link preview when wuapi stored one), images, videos, GIFs, audio, voice notes (they stay voice notes), documents, stickers, locations and contact cards are forwarded, captions included. Media is not downloaded or uploaded again while WhatsApp still serves the original file: the new message names the same file. When it no longer does, wuapi uploads its stored copy, or fetches the file from WhatsApp first when it never stored it. Nothing of the original's context travels: no reply quote, no mentions, no disappearing timer.
+   *
+   * The answer is a list with one `queued` message per chat, in the order of `to`, each an ordinary message from there on: `forwarded: true`, its own id, the same outcome events (`message.sent`, `message.delivered`, `message.read`, `message.failed`), the same pacing, queue timeout and offline tolerance as `POST /v1/messages`, and it counts as one sent message each. The request is all or nothing: a refusal queues no message. What can still go wrong per chat (a recipient without WhatsApp, an account that stays offline) is that message's own `failed` status and `error`.
+   *
+   * Send `Idempotency-Key`. A repeated request answers the stored response; if the first one never completed, the key also identifies each chat's message, so the retry returns the messages already queued and queues only the missing ones. A chat is never forwarded to twice.
+   *
+   * Polls, calendar events, reactions, view-once and deleted messages answer `400 not_forwardable`. So does a contact's story (`details.reason: story`): its id is a story id, and WhatsApp forwards only the stories the account posted, which are messages and forward like any other. Reply to a contact's story with `replyToStoryId` on `POST /v1/messages` instead. `to` takes at most 5 chats (WhatsApp's limit per forward), and exactly 1 when the message is `forwardedManyTimes`. To label content of your own as forwarded, send it with `POST /v1/messages` and `forwarded: true` instead.
+   *
+   * `POST /v1/messages/{messageId}/forward`
+   */
+  forward(messageId: string, params: MessagesForwardParams, options?: CallOptions): Promise<MessageList> {
+    return this._request<MessageList>(
+      "POST",
+      `/v1/messages/${enc(messageId)}/forward`,
       { body: params, idempotent: true },
       options,
     );
