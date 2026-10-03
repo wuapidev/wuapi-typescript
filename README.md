@@ -329,7 +329,7 @@ try {
 ```
 
 - **Filters.** `types` (typed: the loop's event is narrowed to them) and `accounts`, up to 50 values each. Presence events and `webhook.test` are not on Streams.
-- **Resume.** `lastEventId` starts after a cursor; within 30 minutes wuapi replays what happened since. An older cursor gets a `reset` status: events may have been missed, so read them over REST (`messages.list`), and the stream goes on live. A stream without a cursor starts now.
+- **Resume.** `lastEventId` starts after a cursor; within 28 minutes wuapi replays what happened since (events are kept 30 minutes, but only 28 are guaranteed). An older cursor can get a `reset` status: events may have been missed, so read them over REST (`messages.list`), and the stream goes on live. A stream without a cursor starts now.
 - **What ends it.** `signal`, `stream.close()` or `break`. A `StreamError` for `unauthorized` (the key), `forbidden` (the organization is suspended), `invalid_request` (a filter), `not_found` (the project), `refused` and `unexpected_response`. A `429` (the Free plan allows 3 open stream connections per organization), a `5xx` and a network error are waited out, honoring `Retry-After`, with jitter and at most 6 connects a minute.
 - **Everything it reports.** `stream.items()` yields the events with their `cursor`, `id` and raw `data`, and `open`, `reset`, `skipped` and `reconnecting` in order, instead of `onStatus`. `giveUpAfterMs` turns a long outage into a `gave_up` error.
 

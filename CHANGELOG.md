@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.13.1
+
+### Fixed
+
+- **Streams: the resume window is 28 minutes, not 30.** wuapi keeps events for 30 minutes, but the
+  outage a client can count on resuming across is 28: the server refuses a cursor close to the end
+  of the 30 (a safety margin), and a connection's own cursor can lag by up to a minute and a
+  quarter. The README and the doc comment of `StreamSpec.timing.replayWindowMs` now say so. No
+  behavior changes: `replayWindowMs` keeps its value (30 minutes, the retention).
+
 ## 0.13.0
 
 ### Added

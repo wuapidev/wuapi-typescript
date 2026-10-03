@@ -33,7 +33,7 @@ export interface StreamTiming {
   retryMaxMs: number;
   /** Clamp on a server-sent `Retry-After`. */
   retryAfterMaxMs: number;
-  /** How far back a cursor can resume. */
+  /** How long wuapi keeps events: a cursor older than this never resumes. A resume is guaranteed only within 28 minutes of it. */
   replayWindowMs: number;
 }
 
