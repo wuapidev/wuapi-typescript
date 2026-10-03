@@ -24,6 +24,7 @@ import { ProjectsResource } from "./resources/projects.js";
 import { InvitationsResource } from "./resources/invitations.js";
 import { BrandingResource } from "./resources/branding.js";
 import { UsageResource } from "./resources/usage.js";
+import { EventsResource } from "./resources/events.js";
 import type { AuthContext } from "./types.js";
 
 /** The wuapi API client. Secure, fast and scalable WhatsApp API for developers. */
@@ -83,6 +84,10 @@ export class Wuapi extends Resource {
   readonly branding: BrandingResource;
   /** Billable usage, and the per-project export for rebilling. */
   readonly usage: UsageResource;
+  /**
+   * Streams: your events over one connection your code opens, the same envelope a webhook carries. No public endpoint needed.
+   */
+  readonly events: EventsResource;
 
   constructor(options: ClientOptions | HttpClient = {}) {
     const http = options instanceof HttpClient ? options : new HttpClient(options);
@@ -109,6 +114,7 @@ export class Wuapi extends Resource {
     this.invitations = new InvitationsResource(http);
     this.branding = new BrandingResource(http);
     this.usage = new UsageResource(http);
+    this.events = new EventsResource(http);
   }
 
   /** The API base URL. */

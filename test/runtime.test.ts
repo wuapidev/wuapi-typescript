@@ -380,6 +380,33 @@ describe("requests outside the API", () => {
   });
 });
 
+describe("streamed responses", () => {
+  it("opens one with the key and the project, follows no redirect and has no timeout", async () => {
+    const seen: { url: string; init: RequestInit }[] = [];
+    const fetch: FetchLike = async (url, init) => {
+      seen.push({ url, init });
+      return new Response("data: x\n\n", { status: 200 });
+    };
+    const signal = new AbortController().signal;
+    const scoped = http(fetch, { project: "proj_1", streamBaseUrl: "https://stream.example.test//" });
+    expect(scoped.streamBaseUrl).toBe("https://stream.example.test");
+    const res = await scoped.openStream("https://stream.example.test/v1/events", { Accept: "text/event-stream" }, signal);
+    expect(await res.text()).toBe("data: x\n\n");
+    expect(seen[0]!.url).toBe("https://stream.example.test/v1/events");
+    expect(seen[0]!.init).toEqual({
+      method: "GET",
+      headers: { Accept: "text/event-stream", Authorization: `Bearer ${KEY}`, [PROJECT_HEADER]: "proj_1" },
+      redirect: "manual",
+      signal,
+    });
+
+    const plain = http(fetch);
+    expect(plain.streamBaseUrl).toBeUndefined();
+    await plain.openStream("https://stream.example.test/v1/events", {}, signal);
+    expect(seen[1]!.init.headers).toEqual({ Authorization: `Bearer ${KEY}` });
+  });
+});
+
 describe("pagination", () => {
   const page = (items: number[], nextCursor: string | null): Page<number> => ({ object: "list", items, nextCursor });
 

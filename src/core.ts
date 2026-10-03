@@ -22,6 +22,12 @@ export interface ClientOptions {
    * omitted (the key already names its project).
    */
   project?: string;
+  /**
+   * Where the event stream is served, for an API that has one. Defaults to
+   * the stream's production URL, or to the origin of `baseUrl` when that is
+   * not the API's production URL.
+   */
+  streamBaseUrl?: string;
 }
 
 /** Per-call options, accepted by every method as its last argument. */
@@ -60,7 +66,8 @@ function readEnvApiKey(): string | undefined {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-function parseRetryAfter(value: string | null): number | undefined {
+/** Seconds to wait, from a `Retry-After` header: a number of seconds or an HTTP date. */
+export function parseRetryAfter(value: string | null): number | undefined {
   if (value === null) return undefined;
   const seconds = Number(value);
   if (Number.isFinite(seconds) && seconds >= 0) return seconds;
@@ -75,6 +82,8 @@ export class HttpClient {
   readonly maxRetries: number;
   /** The project header value, when this client is scoped to a project. */
   readonly project: string | undefined;
+  /** The stream host, when the client was given one. */
+  readonly streamBaseUrl: string | undefined;
   readonly #apiKey: string;
   readonly #fetch: FetchLike;
   readonly #options: ClientOptions;
@@ -95,6 +104,7 @@ export class HttpClient {
     const project = options.project?.trim();
     if (project !== undefined && project.length > 200) throw new Error("wuapi: `project` must be at most 200 characters.");
     this.project = project ? project : undefined;
+    this.streamBaseUrl = options.streamBaseUrl?.replace(/\/+$/, "");
     this.#options = { ...options, apiKey };
   }
 
@@ -210,6 +220,18 @@ export class HttpClient {
       clearTimeout(timer);
       opts.signal?.removeEventListener("abort", onAbort);
     }
+  }
+
+  /**
+   * One `GET` whose response is read as it arrives (an event stream), with
+   * this client's `fetch`, API key and project header. No timeout and no
+   * retries: the caller owns both. A redirect is returned, never followed,
+   * so the key only ever goes to `url`.
+   */
+  openStream(url: string, headers: Record<string, string>, signal: AbortSignal): Promise<Response> {
+    const all: Record<string, string> = { ...headers, Authorization: `Bearer ${this.#apiKey}` };
+    if (this.project) all[PROJECT_HEADER] = this.project;
+    return this.#fetch(url, { method: "GET", headers: all, redirect: "manual", signal });
   }
 
   #backoff(attempt: number): number {

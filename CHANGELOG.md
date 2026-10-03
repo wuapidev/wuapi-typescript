@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.13.0
+
+### Added
+
+- **Streams.** `client.events.stream(params?, options?)` opens Streams
+  (`GET https://stream.wuapi.dev/v1/events/stream`): your events over one connection your code
+  opens, the same envelope a webhook carries, with no public endpoint and no signature to verify.
+  It returns an `EventStream`: iterate it with `for await` for the events.
+  - `types` and `accounts` filter it (up to 50 values each). The loop's event is typed by `types`:
+    `stream({ types: ["message.received"] })` yields `message.received` events. Presence events and
+    `webhook.test` are not on Streams, so `types` does not take them (`StreamEventType`).
+  - It reconnects and resumes by itself with `Last-Event-ID`, waits what the stream asks (`retry`,
+    `Retry-After`) with jitter, starts at most 6 connects a minute per client, and delivers an
+    event once when a replay repeats it. `lastEventId` starts after a cursor, and
+    `stream.lastEventId` is the cursor to save.
+  - `options.onStatus` is told what is not an event: `open`, `reconnecting` (with `reason`,
+    `delayMs` and `failures`), `reset` (the cursor was too old: resync over REST, the stream goes
+    on live) and `skipped`. `stream.items()` yields those in order with the events, each event
+    with its `cursor`, `id` and raw `data`.
+  - `options.signal`, `stream.close()` or `break` end it without an error. What waiting cannot
+    fix ends it with a `StreamError` (a `WuapiError` with `kind`): `unauthorized`, `forbidden`,
+    `invalid_request`, `not_found`, `refused`, `unexpected_response`, and `gave_up` when
+    `giveUpAfterMs` is set. A `429`, a `5xx` and a network error are never errors: they are
+    retried.
+  - It uses `fetch` and streams, not `EventSource` (which cannot send the `Authorization`
+    header), so it runs on Node 18+, Bun, Deno and edge runtimes. The key is sent in the header
+    only, and only to `https` (or to `http` on localhost).
+- `ClientOptions.streamBaseUrl`: another stream host. Without it, a client pointed at another
+  `baseUrl` streams from that origin, so its key never reaches the production stream.
+- Exports `EventStream`, `StreamError`, `SseParser`, `STREAM_SPEC` and the types `EventsResource`,
+  `EventsStreamParams`, `StreamEventType`, `StreamResetReason`, `StreamItem`, `StreamStatus`,
+  `StreamState`, `StreamOptions`, `StreamErrorKind`, `StreamSpec`, `StreamTiming`, `StreamLimits`,
+  `StreamRefusal`, `StreamInit`, `StreamRuntime` and `SseItem`.
+- `HttpClient.openStream(url, headers, signal)`: one `GET` with the client's key and project, read
+  as it arrives, with no timeout, no retries and no redirect followed.
+
+The stream client is generated like the rest of the SDK, from one description of Streams, and is
+held to the same behaviour as every other wuapi SDK by a shared conformance suite
+(`test/stream-conformance/`).
+
 ## 0.12.0
 
 ### Added

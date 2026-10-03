@@ -31,5 +31,9 @@ export type { ProjectsApiKeysResource, ProjectsResource } from "./resources/proj
 export type { InvitationsResource } from "./resources/invitations.js";
 export type { BrandingResource } from "./resources/branding.js";
 export type { UsageResource } from "./resources/usage.js";
+export { EventStream, SseParser, StreamError } from "./stream.js";
+export type { SseItem, StreamErrorKind, StreamInit, StreamItem, StreamLimits, StreamOptions, StreamRefusal, StreamRuntime, StreamSpec, StreamState, StreamStatus, StreamTiming } from "./stream.js";
+export { STREAM_SPEC } from "./resources/events.js";
+export type { EventsResource, EventsStreamParams, StreamEventType, StreamResetReason } from "./resources/events.js";
 export type * from "./types.js";
 export * from "./custom/index.js";

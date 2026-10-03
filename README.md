@@ -4,11 +4,12 @@
 [![CI](https://github.com/wuapidev/wuapi-typescript/actions/workflows/ci.yml/badge.svg)](https://github.com/wuapidev/wuapi-typescript/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/@wuapidev/sdk.svg)](LICENSE)
 
-TypeScript SDK for [wuapi](https://wuapi.dev), a secure, fast and scalable WhatsApp API for developers. Link your own WhatsApp numbers by QR code or pairing code, send and receive messages, manage chats, contacts, groups, communities and channels, split them into projects, and verify webhooks.
+TypeScript SDK for [wuapi](https://wuapi.dev), a secure, fast and scalable WhatsApp API for developers. Link your own WhatsApp numbers by QR code or pairing code, send and receive messages, manage chats, contacts, groups, communities and channels, split them into projects, and receive events over Webhooks or Streams.
 
 - Zero runtime dependencies. Uses the global `fetch` and WebCrypto.
 - ESM with TypeScript types that match the [OpenAPI spec](https://wuapi.dev/openapi.json).
 - Retries, timeouts and idempotency keys built in.
+- Streams: your events over one connection, with reconnect and resume built in.
 
 Docs: [wuapi.dev/docs](https://wuapi.dev/docs). OpenAPI: [wuapi.dev/openapi.json](https://wuapi.dev/openapi.json).
 
@@ -290,6 +291,50 @@ export async function POST(request: Request) {
 
 Every event has the same envelope: `{ id, object: "event", type, createdAt, organizationId, projectId, data: { object } }`. `data.object` is the resource in its REST shape (an `account`, a `message`, a `group`, ...) or the event's own object (`poll_vote`, `call`, `chat_change`, ...). `message.edited` and `invitation.status_changed` add `data.previousAttributes`. `webhook.test` (the endpoint as `data.object`) is sent only when you press Send test event in the dashboard. `WEBHOOK_EVENT_TYPES` lists every type.
 
+## Streams
+
+Streams deliver the same events as Webhooks over one connection your code opens: no public endpoint, no signature to verify. Use Streams from a script, a worker behind a firewall, a desktop app, or while you build.
+
+```ts
+for await (const event of wuapi.events.stream({ types: ["message.received"] })) {
+  console.log(event.data.object.from, event.data.object.text); // typed by the filter
+}
+```
+
+The loop runs until you stop it. The stream connects, and when the connection ends (a deploy, a network drop, an hour of age) it waits and connects again with its cursor, so nothing in between is missed; an event a replay repeats is delivered once. It never gives up by itself: only what waiting cannot fix ends the loop, as a `StreamError`.
+
+```ts
+import { StreamError } from "@wuapidev/sdk";
+
+const controller = new AbortController();
+const stream = wuapi.events.stream(
+  { accounts: ["k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr"], lastEventId: saved },
+  {
+    signal: controller.signal, // abort() ends the loop without an error
+    onStatus: (status) => {
+      if (status.type === "reconnecting") console.warn(`stream ${status.reason}, back in ${status.delayMs} ms`);
+      if (status.type === "reset") console.warn(`missed events (${status.reason}): resync over REST`);
+    },
+  },
+);
+try {
+  for await (const event of stream) {
+    await handle(event);
+    saved = stream.lastEventId; // resume from here after a restart
+  }
+} catch (err) {
+  if (err instanceof StreamError) console.error(err.kind, err.code, err.message); // unauthorized, forbidden, invalid_request, ...
+  else throw err;
+}
+```
+
+- **Filters.** `types` (typed: the loop's event is narrowed to them) and `accounts`, up to 50 values each. Presence events and `webhook.test` are not on Streams.
+- **Resume.** `lastEventId` starts after a cursor; within 30 minutes wuapi replays what happened since. An older cursor gets a `reset` status: events may have been missed, so read them over REST (`messages.list`), and the stream goes on live. A stream without a cursor starts now.
+- **What ends it.** `signal`, `stream.close()` or `break`. A `StreamError` for `unauthorized` (the key), `forbidden` (the organization is suspended), `invalid_request` (a filter), `not_found` (the project), `refused` and `unexpected_response`. A `429` (the Free plan allows 3 open stream connections per organization), a `5xx` and a network error are waited out, honoring `Retry-After`, with jitter and at most 6 connects a minute.
+- **Everything it reports.** `stream.items()` yields the events with their `cursor`, `id` and raw `data`, and `open`, `reset`, `skipped` and `reconnecting` in order, instead of `onStatus`. `giveUpAfterMs` turns a long outage into a `gave_up` error.
+
+It uses `fetch` and streams, so it runs on Node 18+, Bun, Deno and edge runtimes. In a browser the key would be public: stream from your backend. The key is sent in the `Authorization` header only.
+
 ## Projects
 
 Three levels: your **organization** pays; a **project** is one of your customers, or an environment, with its own accounts, API keys, webhooks, limits and usage, isolated from every other project; an **account** is a linked WhatsApp number with a name, like "Sales" or "Support".
@@ -413,6 +458,7 @@ new Wuapi({
   maxRetries: 2,
   fetch: customFetch,              // optional
   project: "ext:customer_8812",     // optional: sends Wuapi-Project on every request
+  streamBaseUrl: "https://stream.wuapi.dev", // default, for Streams
 });
 ```
 
