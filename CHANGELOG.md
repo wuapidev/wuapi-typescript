@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.14.0
+
+### Added
+
+- **A group says which community it belongs to.** `Group.communityId` is the id of the community
+  the group is a subgroup of (`null` when it is in none, and on a community itself), and
+  `Group.default` is `true` for the community's announcement group. Both come with `groups.list`,
+  `groups.get` and the `group.joined` event, so one list is enough to show an account's groups by
+  community.
+- **Create a group inside a community.** `groups.create(accountId, { name, participants,
+  communityId })`. Together with `community: true` it is `400 invalid_request`. For an account that
+  cannot create groups inside a community yet it is `400 not_supported`, and nothing is created.
+- **Subgroups linked and unlinked arrive as `group.updated`.** `GroupChange` has `linked` and
+  `unlinked` (the subgroups' ids) and `communityId` (their community: `groupId` itself, or the other
+  group when WhatsApp reports the change on the subgroup), and `changes` takes `subgroups_linked`
+  and `subgroups_unlinked`. For every other change the lists are empty and `communityId` is `null`.
+
+### Changed
+
+- `Group` and `GroupChange` have new required fields (above). Code that builds these objects by
+  hand, a test fixture for example, has to add them.
+
 ## 0.13.1
 
 ### Fixed

@@ -2062,6 +2062,14 @@ export interface Group {
   ownerId: string | null;
   /** A community: it links other groups (its subgroups). */
   community: boolean;
+  /**
+   * The community this group is a subgroup of (its group id), `null` when the group is in no community. A community itself has `null` here.
+   */
+  communityId: string | null;
+  /**
+   * The community's announcement group: the subgroup WhatsApp creates with the community. `false` for every other group.
+   */
+  default: boolean;
   /** Only admins can edit the group info. */
   locked: boolean;
   /** Only admins can send. */
@@ -2085,6 +2093,10 @@ export interface GroupCreateRequest {
   participants?: string[];
   /** Create a community instead of a group; `participants` may be empty. */
   community?: boolean;
+  /**
+   * Create the group inside this community (its group id, `...@g.us`): it becomes one of the community's subgroups. Cannot be combined with `community`. `400 not_supported` while the account's engine cannot do it yet.
+   */
+  communityId?: string;
 }
 
 /** Provide at least one field. */
@@ -2759,20 +2771,35 @@ export interface GroupChange {
   object: "group_change";
   /** The account this belongs to. */
   accountId: string;
+  /** The group the change is about. */
   groupId: string;
+  /**
+   * The community of a link or unlink (see `linked`, `unlinked`): the same id as `groupId` when WhatsApp reports the change on the community, the other group when it reports it on the subgroup. `null` for every other change.
+   */
+  communityId: string | null;
   /** Who made the change, when WhatsApp says. */
   actorId: string | null;
   added: string[];
   removed: string[];
   promoted: string[];
   demoted: string[];
+  /**
+   * Group ids of the subgroups linked to the community `communityId`: each one's `communityId` is now that id.
+   */
+  linked: string[];
+  /**
+   * Group ids of the subgroups unlinked from the community `communityId` (also when the community was deleted): each one's `communityId` is now `null`.
+   */
+  unlinked: string[];
   /** The new name, when it changed. */
   name: string | null;
   /** The new description, when it changed. */
   description: string | null;
   locked: boolean | null;
   announce: boolean | null;
-  /** What moved. */
+  /**
+   * What moved. `subgroups_linked` and `subgroups_unlinked`: a community gained or lost a subgroup (`communityId`, `linked`, `unlinked`).
+   */
   changes: GroupChangeChangesItem[];
   changedAt: string | null;
 }
@@ -2783,7 +2810,9 @@ export type GroupChangeChangesItem =
   | "admins_changed"
   | "name"
   | "description"
-  | "settings";
+  | "settings"
+  | "subgroups_linked"
+  | "subgroups_unlinked";
 
 /** A chat changed on the phone or another device. */
 export interface ChatChange {

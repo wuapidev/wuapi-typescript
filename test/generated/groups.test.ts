@@ -31,6 +31,8 @@ describe("groups", () => {
       description: "description 1",
       ownerId: "ownerId 1",
       community: true,
+      communityId: "communityId 1",
+      default: true,
       locked: true,
       announce: true,
       participants: [{ contactId: "contactId 1", name: "name 1", role: "member" }],
@@ -60,6 +62,8 @@ describe("groups", () => {
       description: "description 1",
       ownerId: "ownerId 1",
       community: true,
+      communityId: "communityId 1",
+      default: true,
       locked: true,
       announce: true,
       participants: [{ contactId: "contactId 1", name: "name 1", role: "member" }],
@@ -81,20 +85,32 @@ describe("groups", () => {
       description: "description 1",
       ownerId: "ownerId 1",
       community: true,
+      communityId: "communityId 1",
+      default: true,
       locked: true,
       announce: true,
       participants: [{ contactId: "contactId 1", name: "name 1", role: "member" }],
       createdAt: "2026-09-24T09:00:00.000Z",
     };
     const { fetch, calls } = mockFetch([{ status: 201, body: response }]);
-    const params: GroupsCreateParams = { name: "name 1", participants: ["participants 1"], community: true };
+    const params: GroupsCreateParams = {
+      name: "name 1",
+      participants: ["participants 1"],
+      community: true,
+      communityId: "communityId 1",
+    };
     const client = new Wuapi({ apiKey: KEY, fetch });
     const result = await client.groups.create("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", params);
     expect(result).toEqual(response);
     expect(calls).toHaveLength(1);
     expect(calls[0]!.method).toBe("POST");
     expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/groups");
-    expect(calls[0]!.body).toEqual({ name: "name 1", participants: ["participants 1"], community: true });
+    expect(calls[0]!.body).toEqual({
+      name: "name 1",
+      participants: ["participants 1"],
+      community: true,
+      communityId: "communityId 1",
+    });
     expect(calls[0]!.headers["Idempotency-Key"]).toMatch(/.+/);
   });
 
@@ -132,6 +148,8 @@ describe("groups", () => {
       description: "description 1",
       ownerId: "ownerId 1",
       community: true,
+      communityId: "communityId 1",
+      default: true,
       locked: true,
       announce: true,
       participants: [{ contactId: "contactId 1", name: "name 1", role: "member" }],
@@ -157,6 +175,8 @@ describe("groups", () => {
       description: "description 1",
       ownerId: "ownerId 1",
       community: true,
+      communityId: "communityId 1",
+      default: true,
       locked: true,
       announce: true,
       participants: [{ contactId: "contactId 1", name: "name 1", role: "member" }],
@@ -182,6 +202,8 @@ describe("groups", () => {
       description: "description 1",
       ownerId: "ownerId 1",
       community: true,
+      communityId: "communityId 1",
+      default: true,
       locked: true,
       announce: true,
       participants: [{ contactId: "contactId 1", name: "name 1", role: "member" }],
@@ -222,6 +244,8 @@ describe("groups", () => {
       description: "description 1",
       ownerId: "ownerId 1",
       community: true,
+      communityId: "communityId 1",
+      default: true,
       locked: true,
       announce: true,
       participants: [{ contactId: "contactId 1", name: "name 1", role: "member" }],
