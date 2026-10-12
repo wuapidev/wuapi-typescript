@@ -2389,6 +2389,56 @@ export interface WebhookEndpointUpdateRequest {
   active?: boolean;
 }
 
+/**
+ * A URL that sends a WhatsApp message. `POST` a body to `url` and the text goes from `accountId` to `to`; the URL is the credential, so keep it secret. Send it with no API key. Rotate it with `rotateUrl`.
+ */
+export interface IncomingWebhook {
+  /** Always `incoming_webhook`. */
+  object: "incoming_webhook";
+  id: string;
+  /** The account the messages are sent from. */
+  accountId: string;
+  /** The project of the account, or `null` when it has none. */
+  projectId: string | null;
+  /** A label for you. 1 to 60 characters. */
+  name: string;
+  /** The fixed destination: a contact (`+584121234567` or `lid:<digits>`) or a group (`...@g.us`). */
+  to: string;
+  /** A paused hook answers `403` and sends nothing. */
+  enabled: boolean;
+  /** Where to `POST` the message. It changes when you rotate it, and the old URL stops working. */
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A page of `IncomingWebhook` objects. */
+export interface IncomingWebhookList {
+  /** Always `list`. */
+  object: "list";
+  items: IncomingWebhook[];
+  /** Pass as `cursor` to get the next page. `null` on the last page. */
+  nextCursor: string | null;
+}
+
+export interface IncomingWebhookCreateRequest {
+  /** The account to send from. A project key can use only its own project's accounts. */
+  accountId: string;
+  /** A label for you. 1 to 60 characters. */
+  name: string;
+  /** The fixed destination: `+584121234567`, `lid:<digits>` or a group `...@g.us`. */
+  to: string;
+}
+
+/** Provide at least one field. */
+export interface IncomingWebhookUpdateRequest {
+  name?: string;
+  /** `false` pauses the hook: its URL answers `403` until it is enabled again. */
+  enabled?: boolean;
+  /** `true` issues a new URL; the old one stops working at once. The response carries the new `url`. */
+  rotateUrl?: boolean;
+}
+
 /** A calendar month in UTC. */
 export interface Period {
   startsAt: string;
@@ -4089,6 +4139,30 @@ export type WebhookEndpointsCreateParams = WebhookEndpointCreateRequest;
 
 /** Params for `webhookEndpoints.update`. */
 export type WebhookEndpointsUpdateParams = WebhookEndpointUpdateRequest;
+
+/** Params for `incomingWebhooks.list`. */
+export interface IncomingWebhooksListParams {
+  /**
+   * Page size, 1 to 100.
+   *
+   * @defaultValue `50`
+   */
+  limit?: number;
+  /**
+   * Opaque cursor from a previous page's `nextCursor`. An invalid or expired cursor answers `400 invalid_request`.
+   */
+  cursor?: string;
+  /**
+   * Filter by project: a project id, `ext:<externalId>`, or `none` for resources in no project. With an organization scope and no filter, the list covers every project and the unassigned resources. With a project scope the list is always that project's; naming another project answers `403 forbidden`. An unknown project answers `404 project_not_found`.
+   */
+  projectId?: string;
+}
+
+/** Params for `incomingWebhooks.create`. */
+export type IncomingWebhooksCreateParams = IncomingWebhookCreateRequest;
+
+/** Params for `incomingWebhooks.update`. */
+export type IncomingWebhooksUpdateParams = IncomingWebhookUpdateRequest;
 
 /** Params for `projects.create`. */
 export type ProjectsCreateParams = ProjectCreateRequest;

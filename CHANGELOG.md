@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.0
+
+### Added
+
+- **Incoming webhooks.** `incomingWebhooks.list`, `create`, `get`, `update` and `delete` manage the
+  secret URLs that send a WhatsApp message: `POST` a body to an `IncomingWebhook.url` (JSON
+  `{text}`, or plain text, no API key) and it goes from `accountId` to the fixed `to`. `update`
+  renames it, pauses it with `enabled: false` or issues a new URL with `rotateUrl: true`. The URL
+  is a credential: treat it like a secret.
+
 ## 0.14.0
 
 ### Added

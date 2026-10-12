@@ -27,6 +27,7 @@ export type { OrdersResource } from "./resources/orders.js";
 export type { GroupsResource } from "./resources/groups.js";
 export type { ChannelsResource } from "./resources/channels.js";
 export type { WebhookEndpointsResource } from "./resources/webhook-endpoints.js";
+export type { IncomingWebhooksResource } from "./resources/incoming-webhooks.js";
 export type { ProjectsApiKeysResource, ProjectsResource } from "./resources/projects.js";
 export type { InvitationsResource } from "./resources/invitations.js";
 export type { BrandingResource } from "./resources/branding.js";

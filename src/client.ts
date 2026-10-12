@@ -20,6 +20,7 @@ import { OrdersResource } from "./resources/orders.js";
 import { GroupsResource } from "./resources/groups.js";
 import { ChannelsResource } from "./resources/channels.js";
 import { WebhookEndpointsResource } from "./resources/webhook-endpoints.js";
+import { IncomingWebhooksResource } from "./resources/incoming-webhooks.js";
 import { ProjectsResource } from "./resources/projects.js";
 import { InvitationsResource } from "./resources/invitations.js";
 import { BrandingResource } from "./resources/branding.js";
@@ -73,6 +74,10 @@ export class Wuapi extends Resource {
    * wuapi sends events to your webhook endpoints as `POST` requests with a JSON body (schema `Event`):
    */
   readonly webhookEndpoints: WebhookEndpointsResource;
+  /**
+   * A secret URL that sends a WhatsApp message from one of your accounts to one fixed contact or group: `POST` a body to it, no API key. Manage them here; the URL in each object is the credential.
+   */
+  readonly incomingWebhooks: IncomingWebhooksResource;
   readonly projects: ProjectsResource;
   /**
    * A hosted page you send to someone else, your customer, a store manager or a sales rep, so they link their own WhatsApp into one of your projects without an account, a dashboard or an API key. The page is public at `https://wuapi.dev/invite/{token}`, `noindex`, and shows nothing about your other projects, accounts or invitations.
@@ -110,6 +115,7 @@ export class Wuapi extends Resource {
     this.groups = new GroupsResource(http);
     this.channels = new ChannelsResource(http);
     this.webhookEndpoints = new WebhookEndpointsResource(http);
+    this.incomingWebhooks = new IncomingWebhooksResource(http);
     this.projects = new ProjectsResource(http);
     this.invitations = new InvitationsResource(http);
     this.branding = new BrandingResource(http);
