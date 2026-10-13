@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.1
+
+### Changed
+
+- **Reply privately to a group message.** `messages.send` takes as `replyToMessageId` a message
+  someone else wrote in a group when `to` is the direct chat with its author (the message's
+  `from`): the reply goes to that chat and quotes the group message. Every other quote of a
+  message from another chat is still `400 invalid_request`. Only the documentation of
+  `replyToMessageId` changed in the package.
+
 ## 0.15.0
 
 ### Added

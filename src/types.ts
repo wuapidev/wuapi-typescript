@@ -802,7 +802,7 @@ export interface SendTextMessageRequest {
   disappearingSeconds?: DisappearingSeconds;
   linkPreview?: SendLinkPreview;
   /**
-   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   * A wuapi message id in the same chat to quote. One exception, a private reply: a message someone else wrote in a group can be quoted in the direct chat with its author (`to` is that message's `from`). Any type. Not for channel posts. Not together with `replyToStoryId`.
    */
   replyToMessageId?: string;
   /**
@@ -839,7 +839,7 @@ export interface SendImageMessageRequest {
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
   /**
-   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   * A wuapi message id in the same chat to quote. One exception, a private reply: a message someone else wrote in a group can be quoted in the direct chat with its author (`to` is that message's `from`). Any type. Not for channel posts. Not together with `replyToStoryId`.
    */
   replyToMessageId?: string;
   /**
@@ -876,7 +876,7 @@ export interface SendVideoMessageRequest {
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
   /**
-   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   * A wuapi message id in the same chat to quote. One exception, a private reply: a message someone else wrote in a group can be quoted in the direct chat with its author (`to` is that message's `from`). Any type. Not for channel posts. Not together with `replyToStoryId`.
    */
   replyToMessageId?: string;
   /**
@@ -913,7 +913,7 @@ export interface SendAudioMessageRequest {
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
   /**
-   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   * A wuapi message id in the same chat to quote. One exception, a private reply: a message someone else wrote in a group can be quoted in the direct chat with its author (`to` is that message's `from`). Any type. Not for channel posts. Not together with `replyToStoryId`.
    */
   replyToMessageId?: string;
   /**
@@ -950,7 +950,7 @@ export interface SendVoiceMessageRequest {
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
   /**
-   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   * A wuapi message id in the same chat to quote. One exception, a private reply: a message someone else wrote in a group can be quoted in the direct chat with its author (`to` is that message's `from`). Any type. Not for channel posts. Not together with `replyToStoryId`.
    */
   replyToMessageId?: string;
   /**
@@ -985,7 +985,7 @@ export interface SendDocumentMessageRequest {
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
   /**
-   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   * A wuapi message id in the same chat to quote. One exception, a private reply: a message someone else wrote in a group can be quoted in the direct chat with its author (`to` is that message's `from`). Any type. Not for channel posts. Not together with `replyToStoryId`.
    */
   replyToMessageId?: string;
   /**
@@ -1020,7 +1020,7 @@ export interface SendStickerMessageRequest {
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
   /**
-   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   * A wuapi message id in the same chat to quote. One exception, a private reply: a message someone else wrote in a group can be quoted in the direct chat with its author (`to` is that message's `from`). Any type. Not for channel posts. Not together with `replyToStoryId`.
    */
   replyToMessageId?: string;
   /**
@@ -1053,7 +1053,7 @@ export interface SendLocationMessageRequest {
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
   /**
-   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   * A wuapi message id in the same chat to quote. One exception, a private reply: a message someone else wrote in a group can be quoted in the direct chat with its author (`to` is that message's `from`). Any type. Not for channel posts. Not together with `replyToStoryId`.
    */
   replyToMessageId?: string;
   /**
@@ -1086,7 +1086,7 @@ export interface SendContactMessageRequest {
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
   /**
-   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   * A wuapi message id in the same chat to quote. One exception, a private reply: a message someone else wrote in a group can be quoted in the direct chat with its author (`to` is that message's `from`). Any type. Not for channel posts. Not together with `replyToStoryId`.
    */
   replyToMessageId?: string;
   /**
@@ -1120,7 +1120,7 @@ export interface SendContactsMessageRequest {
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
   /**
-   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   * A wuapi message id in the same chat to quote. One exception, a private reply: a message someone else wrote in a group can be quoted in the direct chat with its author (`to` is that message's `from`). Any type. Not for channel posts. Not together with `replyToStoryId`.
    */
   replyToMessageId?: string;
   /**
@@ -1153,7 +1153,7 @@ export interface SendPollMessageRequest {
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
   /**
-   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   * A wuapi message id in the same chat to quote. One exception, a private reply: a message someone else wrote in a group can be quoted in the direct chat with its author (`to` is that message's `from`). Any type. Not for channel posts. Not together with `replyToStoryId`.
    */
   replyToMessageId?: string;
   /**
@@ -1186,7 +1186,7 @@ export interface SendCalendarEventMessageRequest {
   /** Match the chat's disappearing timer. */
   disappearingSeconds?: DisappearingSeconds;
   /**
-   * A wuapi message id in the same chat to quote. Any type. Not for channel posts. Not together with `replyToStoryId`.
+   * A wuapi message id in the same chat to quote. One exception, a private reply: a message someone else wrote in a group can be quoted in the direct chat with its author (`to` is that message's `from`). Any type. Not for channel posts. Not together with `replyToStoryId`.
    */
   replyToMessageId?: string;
   /**
