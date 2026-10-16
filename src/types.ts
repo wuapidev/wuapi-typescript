@@ -194,6 +194,8 @@ export interface Account {
    * What this account's image messages are re-encoded to before their upload. `standard` by default. A send can name its own with `media.quality`.
    */
   imageQuality: ImageQualitySetting;
+  /** Saving the contacts of new chats on the phone automatically. Off by default. */
+  contactAutoSave: ContactAutoSave;
   /** Your labels. Set from an invitation's `metadata` when the invitee links the number. */
   metadata: Record<string, string>;
   /** When linking first finished. */
@@ -315,6 +317,10 @@ export interface AccountUpdateRequest {
    * What this account's image messages are re-encoded to before their upload. Applies to images sent from then on; a send that names `media.quality` keeps its own.
    */
   imageQuality?: ImageQualitySetting;
+  /**
+   * Save the contacts of new chats on the phone automatically. Applies to chats from then on; `POST …/contacts/auto-save/backfill` queues the existing ones.
+   */
+  contactAutoSave?: ContactAutoSaveUpdate;
   /**
    * Move the number, or switch whether its city is exact. A location change: the number gets a new exit IP and its session reconnects.
    */
@@ -1638,7 +1644,7 @@ export interface ContactLookupRequest {
 }
 
 /**
- * A WhatsApp user, as this account sees it. The same object comes from three places, and each fills what it knows: the contact list and `GET …/contacts/{contactId}` read the account's address book as its phone synced it to wuapi (`savedName`, `profileName`, `businessName`, and the `username` and `pictureId` wuapi has seen; `about` and `deviceCount` are `null`); `POST …/contacts/lookup` asks WhatsApp (`about`, `pictureId`, `businessName`, `deviceCount`, `username`; `savedName` and `profileName` are `null`); `contact.updated` carries the field that changed. A field that source does not know is `null`.
+ * A WhatsApp user, as this account sees it. The same object comes from three places, and each fills what it knows: the contact list and `GET …/contacts/{contactId}` read the account's address book as its phone synced it to wuapi (`savedName`, `profileName`, `businessName`, and the `username` and `pictureId` wuapi has seen; `about` and `deviceCount` are `null`); `POST …/contacts/lookup` asks WhatsApp (`about`, `pictureId`, `businessName`, `deviceCount`, `username`; `savedName` and `profileName` are `null`); `contact.updated` carries the field that changed, or the whole contact when a name saved through wuapi reached the phone or failed (`phoneSync`). A field that source does not know is `null`.
  */
 export interface Contact {
   /** Always `contact`. */
@@ -1654,7 +1660,7 @@ export interface Contact {
   /** The contact's `lid:<digits>` id, when WhatsApp gave one. */
   lid: string | null;
   /**
-   * The name the account saved the contact under in its phone's address book, else the contact's business name: the same value as `savedName` of its chat. Set by the contact list and `GET …/contacts/{contactId}`; `null` from a lookup and in `contact.updated`.
+   * The name the account saved the contact under in its phone's address book, else the contact's business name: the same value as `savedName` of its chat. A name being saved on the phone (`phoneSync.status: pending`) shows here at once. Set by the contact list and `GET …/contacts/{contactId}`; `null` from a lookup and in the About and username `contact.updated` events.
    */
   savedName: string | null;
   /**
@@ -1675,6 +1681,10 @@ export interface Contact {
   businessName: string | null;
   /** Devices linked to the contact. Only a lookup sets it. */
   deviceCount: number | null;
+  /**
+   * Where saving the contact on the account's phone stands, when a name was set through wuapi (`PATCH …/contacts/{contactId}`, the batch, auto-save or the dashboard). `null` otherwise, and from a lookup.
+   */
+  phoneSync: PhoneSync | null;
 }
 
 /** A page of `Contact` objects. */
@@ -3323,7 +3333,7 @@ export interface ContactPictureUpdatedEventData {
 }
 
 /**
- * A contact changed their About text, or their WhatsApp username became known or changed. Fields WhatsApp did not send are `null`.
+ * A contact changed their About text, their WhatsApp username became known or changed, or a name saved through wuapi reached the phone or failed (`phoneSync`, with the whole contact). Fields the source did not send are `null`.
  */
 export interface ContactUpdatedEvent {
   /** Event id (`evt_...`). Deduplicate on it. */
@@ -3631,6 +3641,118 @@ export interface UploadCompleteRequest {
   storageId: string;
 }
 
+/**
+ * Saving the contacts of new chats on the account's phone (WhatsApp and the phone's address book). Only direct chats with a phone number: never groups, channels or stories. A contact the phone already holds a name for is never renamed, and a contact is saved at most once: renamed or deleted on the phone later, it is not written again. At most `dailyLimit` auto-saves go out per account and UTC day, a few minutes apart; the rest wait for the next day.
+ */
+export interface ContactAutoSave {
+  /** Save new contacts automatically. `false` by default. */
+  enabled: boolean;
+  /**
+   * `first_inbound`: when the contact sends their first message in a new direct chat. `any_chat`: when a new direct chat starts, whoever writes first.
+   */
+  trigger: ContactAutoSaveTrigger;
+  /**
+   * The saved name. `{profileName}` is the contact's WhatsApp profile name, `{phone}` their number in E.164. When it needs a profile name the contact has not set, `fallbackName` is used.
+   */
+  nameTemplate: string;
+  /** The saved name when `nameTemplate` cannot be filled. Same placeholders. */
+  fallbackName: string;
+  /** Most auto-saves per account and UTC day (read-only). */
+  dailyLimit: number;
+}
+
+export type ContactAutoSaveTrigger = "first_inbound" | "any_chat";
+
+/** A change to `contactAutoSave`: the given fields change, the others keep their value. */
+export interface ContactAutoSaveUpdate {
+  /** Save new contacts automatically. `false` by default. */
+  enabled?: boolean;
+  /**
+   * `first_inbound`: when the contact sends their first message in a new direct chat. `any_chat`: when a new direct chat starts, whoever writes first.
+   */
+  trigger?: ContactAutoSaveUpdateTrigger;
+  /**
+   * The saved name. `{profileName}` is the contact's WhatsApp profile name, `{phone}` their number in E.164. When it needs a profile name the contact has not set, `fallbackName` is used.
+   */
+  nameTemplate?: string;
+  /** The saved name when `nameTemplate` cannot be filled. Same placeholders. */
+  fallbackName?: string;
+}
+
+export type ContactAutoSaveUpdateTrigger = "first_inbound" | "any_chat";
+
+/**
+ * Where the contact's last name change made through wuapi stands on the account's phone. Saving goes to WhatsApp and the phone's own address book; the phone applies it about a minute after it is `synced`.
+ */
+export interface PhoneSync {
+  /**
+   * `pending`: queued, or being sent (also while the account reconnects). `synced`: WhatsApp took the change. `failed`: see `error`.
+   */
+  status: PhoneSyncStatus;
+  /** `manual`: the dashboard. `api`: this API. `auto`: contact auto-save. */
+  source: PhoneSyncSource;
+  /**
+   * Why it failed. `code`: `not_on_whatsapp` (the number has no WhatsApp), `account_offline` (the account went down for good, or stayed offline past its tolerance, before the change was sent) or `save_failed`.
+   */
+  error: PhoneSyncError | null;
+  updatedAt: string;
+}
+
+export type PhoneSyncStatus = "pending" | "synced" | "failed";
+
+export type PhoneSyncSource = "manual" | "api" | "auto";
+
+export interface PhoneSyncError {
+  code: string;
+  message: string;
+}
+
+export interface ContactSaveRequest {
+  /**
+   * The name to save the contact under. `null` (removing the contact) is not supported: `400 not_supported`.
+   */
+  savedName: string | null;
+  /** The short name the phone shows. Defaults to the first word of `savedName`. */
+  firstName?: string;
+}
+
+export interface ContactSaveBatchRequest {
+  contacts: ContactSaveBatchRequestContactsItem[];
+}
+
+export interface ContactSaveBatchRequestContactsItem {
+  /** E.164 number, or `lid:<digits>` when the address book knows its number. */
+  contactId: string;
+  savedName: string;
+  firstName?: string;
+}
+
+/** A batch of contact saves, queued. */
+export interface ContactSaveBatch {
+  object: "contact_batch";
+  /** The batch's id (`cwb_…`). */
+  batchId: string;
+  contacts: ContactSaveBatchContactsItem[];
+}
+
+export interface ContactSaveBatchContactsItem {
+  contactId: string;
+  /**
+   * `pending`: queued. `synced`: the phone already holds that name. `failed`: a `lid:<digits>` contact whose number is not known.
+   */
+  status: ContactSaveBatchContactsItemStatus;
+}
+
+export type ContactSaveBatchContactsItemStatus = "pending" | "synced" | "failed";
+
+/** The backfill of contact auto-save, started. */
+export interface ContactAutoSaveBackfill {
+  object: "contact_auto_save_backfill";
+  accountId: string;
+  /** Most auto-saves sent per UTC day: a large backfill takes several days. */
+  dailyLimit: number;
+}
+
 export type ListChatsType = "direct" | "group" | "channel";
 
 /** Params for `accounts.list`. */
@@ -3897,6 +4019,12 @@ export interface ContactsListParams {
    */
   cursor?: string;
 }
+
+/** Params for `contacts.update`. */
+export type ContactsUpdateParams = ContactSaveRequest;
+
+/** Params for `contacts.saveMany`. */
+export type ContactsSaveManyParams = ContactSaveBatchRequest;
 
 /** Params for `contacts.check`. */
 export type ContactsCheckParams = ContactCheckRequest;

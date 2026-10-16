@@ -6,16 +6,20 @@ import type {
   BlockedContact,
   BusinessProfile,
   Contact,
+  ContactAutoSaveBackfill,
   ContactCheck,
   ContactCheckList,
   ContactLink,
   ContactList,
+  ContactSaveBatch,
   ContactsCheckParams,
   ContactsGetPictureParams,
   ContactsListBlockedParams,
   ContactsListParams,
   ContactsLookupParams,
   ContactsResolveLinkParams,
+  ContactsSaveManyParams,
+  ContactsUpdateParams,
   Picture,
   ResolvedLink,
 } from "../types.js";
@@ -49,7 +53,7 @@ export class ContactsResource extends Resource {
   /**
    * Get a contact
    *
-   * One contact of the account's address book, by its number or its `lid:<digits>` id, from what wuapi stored (see `GET …/contacts` for what that holds). A number or id the address book does not hold answers `404 not_found`, even when the account has a chat with it: `POST …/contacts/lookup` asks WhatsApp about any number.
+   * One contact of the account's address book, by its number or its `lid:<digits>` id, from what wuapi stored (see `GET …/contacts` for what that holds). A number or id the address book does not hold answers `404 not_found`, even when the account has a chat with it, unless a name was saved for it through wuapi (`PATCH …/contacts/{contactId}`, see `phoneSync`): `POST …/contacts/lookup` asks WhatsApp about any number.
    *
    * `GET /v1/accounts/{accountId}/contacts/{contactId}`
    */
@@ -58,6 +62,63 @@ export class ContactsResource extends Resource {
       "GET",
       `/v1/accounts/${enc(accountId)}/contacts/${enc(contactId)}`,
       {},
+      options,
+    );
+  }
+
+  /**
+   * Save a contact on the phone
+   *
+   * Saves the contact under `savedName` on the account's phone: in WhatsApp and in the phone's own address book, as if it were saved on the phone. Any number can be saved, not only the ones the address book holds (a `lid:<digits>` contact needs its number known). The change is queued and answered `202` with the contact, its new `savedName` and `phoneSync.status: pending`: it is sent right away when the account is `ready`, and when it is back if it is reconnecting. `contact.updated` follows when WhatsApp took it (`synced`) or it failed (`not_on_whatsapp`, `account_offline`). The phone shows it about a minute later. Saving the same name again changes nothing. Removing a contact (`savedName: null`) is not supported.
+   *
+   * `PATCH /v1/accounts/{accountId}/contacts/{contactId}`
+   */
+  update(
+    accountId: string,
+    contactId: string,
+    params: ContactsUpdateParams,
+    options?: CallOptions,
+  ): Promise<Contact> {
+    return this._request<Contact>(
+      "PATCH",
+      `/v1/accounts/${enc(accountId)}/contacts/${enc(contactId)}`,
+      { body: params, idempotent: true },
+      options,
+    );
+  }
+
+  /**
+   * Save contacts on the phone in bulk
+   *
+   * Queues up to 500 contact saves at once, like `PATCH …/contacts/{contactId}` for each; they go to the phone in as few WhatsApp changes as possible. Each contact's `phoneSync` and `contact.updated` tell how it ended.
+   *
+   * `POST /v1/accounts/{accountId}/contacts/batch`
+   */
+  saveMany(
+    accountId: string,
+    params: ContactsSaveManyParams,
+    options?: CallOptions,
+  ): Promise<ContactSaveBatch> {
+    return this._request<ContactSaveBatch>(
+      "POST",
+      `/v1/accounts/${enc(accountId)}/contacts/batch`,
+      { body: params, idempotent: true },
+      options,
+    );
+  }
+
+  /**
+   * Auto-save the contacts of existing chats
+   *
+   * Queues the auto-save of the contacts of the account's existing direct chats, named with its `contactAutoSave` templates (whether or not auto-save is enabled). The same rules apply: contacts the phone already holds a name for, and contacts written before, are left alone, and at most `dailyLimit` saves go out per UTC day. Calling it again queues only what is new.
+   *
+   * `POST /v1/accounts/{accountId}/contacts/auto-save/backfill`
+   */
+  backfillAutoSave(accountId: string, options?: CallOptions): Promise<ContactAutoSaveBackfill> {
+    return this._request<ContactAutoSaveBackfill>(
+      "POST",
+      `/v1/accounts/${enc(accountId)}/contacts/auto-save/backfill`,
+      { idempotent: true },
       options,
     );
   }

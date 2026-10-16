@@ -9,6 +9,8 @@ import type {
   ContactsListParams,
   ContactsLookupParams,
   ContactsResolveLinkParams,
+  ContactsSaveManyParams,
+  ContactsUpdateParams,
 } from "../../src/index.js";
 import { KEY, mockFetch } from "../helpers.js";
 
@@ -27,6 +29,12 @@ describe("contacts", () => {
       pictureId: "pictureId 1",
       businessName: "businessName 1",
       deviceCount: 1,
+      phoneSync: {
+        status: "pending",
+        source: "manual",
+        error: { code: "code 1", message: "message 1" },
+        updatedAt: "2026-09-24T09:00:00.000Z",
+      },
     };
     const params: ContactsListParams = { q: "q 1", limit: 50, cursor: "cursor 1" };
     const { fetch, calls } = mockFetch([
@@ -57,6 +65,12 @@ describe("contacts", () => {
       pictureId: "pictureId 1",
       businessName: "businessName 1",
       deviceCount: 1,
+      phoneSync: {
+        status: "pending",
+        source: "manual",
+        error: { code: "code 1", message: "message 1" },
+        updatedAt: "2026-09-24T09:00:00.000Z",
+      },
     };
     const page = { object: "list", items: [item], nextCursor: null };
     const { fetch, calls } = mockFetch([{ status: 200, body: page }]);
@@ -79,6 +93,12 @@ describe("contacts", () => {
       pictureId: "pictureId 1",
       businessName: "businessName 1",
       deviceCount: 1,
+      phoneSync: {
+        status: "pending",
+        source: "manual",
+        error: { code: "code 1", message: "message 1" },
+        updatedAt: "2026-09-24T09:00:00.000Z",
+      },
     };
     const { fetch, calls } = mockFetch([{ status: 200, body: response }]);
     const client = new Wuapi({ apiKey: KEY, fetch });
@@ -89,6 +109,70 @@ describe("contacts", () => {
     expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/contacts/%2B584241112233");
     expect(calls[0]!.body).toBeUndefined();
     expect(calls[0]!.headers["Idempotency-Key"]).toBeUndefined();
+  });
+
+  it("update: PATCH /v1/accounts/{accountId}/contacts/{contactId}", async () => {
+    const response = {
+      object: "contact",
+      id: "id 1",
+      accountId: "accountId 1",
+      phone: "phone 1",
+      lid: "lid 1",
+      savedName: "savedName 1",
+      profileName: "profileName 1",
+      username: "username 1",
+      about: "about 1",
+      pictureId: "pictureId 1",
+      businessName: "businessName 1",
+      deviceCount: 1,
+      phoneSync: {
+        status: "pending",
+        source: "manual",
+        error: { code: "code 1", message: "message 1" },
+        updatedAt: "2026-09-24T09:00:00.000Z",
+      },
+    };
+    const { fetch, calls } = mockFetch([{ status: 202, body: response }]);
+    const params: ContactsUpdateParams = { savedName: "savedName 1", firstName: "firstName 1" };
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.contacts.update("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", "+584241112233", params);
+    expect(result).toEqual(response);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("PATCH");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/contacts/%2B584241112233");
+    expect(calls[0]!.body).toEqual({ savedName: "savedName 1", firstName: "firstName 1" });
+    expect(calls[0]!.headers["Idempotency-Key"]).toMatch(/.+/);
+  });
+
+  it("saveMany: POST /v1/accounts/{accountId}/contacts/batch", async () => {
+    const response = {
+      object: "contact_batch",
+      batchId: "batchId 1",
+      contacts: [{ contactId: "contactId 1", status: "pending" }],
+    };
+    const { fetch, calls } = mockFetch([{ status: 202, body: response }]);
+    const params: ContactsSaveManyParams = { contacts: [{ contactId: "contactId 1", savedName: "savedName 1", firstName: "firstName 1" }] };
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.contacts.saveMany("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr", params);
+    expect(result).toEqual(response);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("POST");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/contacts/batch");
+    expect(calls[0]!.body).toEqual({ contacts: [{ contactId: "contactId 1", savedName: "savedName 1", firstName: "firstName 1" }] });
+    expect(calls[0]!.headers["Idempotency-Key"]).toMatch(/.+/);
+  });
+
+  it("backfillAutoSave: POST /v1/accounts/{accountId}/contacts/auto-save/backfill", async () => {
+    const response = { object: "contact_auto_save_backfill", accountId: "accountId 1", dailyLimit: 1 };
+    const { fetch, calls } = mockFetch([{ status: 202, body: response }]);
+    const client = new Wuapi({ apiKey: KEY, fetch });
+    const result = await client.contacts.backfillAutoSave("k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr");
+    expect(result).toEqual(response);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("POST");
+    expect(calls[0]!.url).toBe("https://api.wuapi.dev/v1/accounts/k57a8m2x9d3f0q1wjh6ypc4n2d7s0vbr/contacts/auto-save/backfill");
+    expect(calls[0]!.body).toBeUndefined();
+    expect(calls[0]!.headers["Idempotency-Key"]).toMatch(/.+/);
   });
 
   it("check: POST /v1/accounts/{accountId}/contacts/check", async () => {
@@ -159,6 +243,12 @@ describe("contacts", () => {
           pictureId: "pictureId 1",
           businessName: "businessName 1",
           deviceCount: 1,
+          phoneSync: {
+            status: "pending",
+            source: "manual",
+            error: { code: "code 1", message: "message 1" },
+            updatedAt: "2026-09-24T09:00:00.000Z",
+          },
         },
       ],
       nextCursor: "nextCursor 1",
@@ -192,6 +282,12 @@ describe("contacts", () => {
           pictureId: "pictureId 1",
           businessName: "businessName 1",
           deviceCount: 1,
+          phoneSync: {
+            status: "pending",
+            source: "manual",
+            error: { code: "code 1", message: "message 1" },
+            updatedAt: "2026-09-24T09:00:00.000Z",
+          },
         },
       ],
       nextCursor: "nextCursor 1",

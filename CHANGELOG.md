@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.16.0
+
+### Added
+
+- **Save contacts on the phone.** `contacts.update(accountId, contactId, { savedName, firstName? })`
+  saves a contact on the linked phone, in WhatsApp and in the phone's own address book. It is
+  queued (also while the account reconnects) and answers the `Contact` with the new `savedName`
+  and `phoneSync` (`pending`, then `synced` or `failed`, announced by `contact.updated`).
+  `contacts.saveMany` queues up to 500 at once. Removing a contact is not supported.
+- **Contact auto-save.** `Account.contactAutoSave` (`enabled`, `trigger`, `nameTemplate`,
+  `fallbackName`, `dailyLimit`), set with `accounts.update`, saves the contacts of new direct
+  chats on the phone; `contacts.backfillAutoSave` queues the ones of existing chats.
+- **`Contact.phoneSync`.** Where a name saved through wuapi stands on the phone, or `null`.
+
 ## 0.15.1
 
 ### Changed
